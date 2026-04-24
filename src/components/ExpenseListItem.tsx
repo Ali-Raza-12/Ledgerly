@@ -1,0 +1,42 @@
+import { Expense } from "@/types/expense";
+import { CategoryIcon } from "./CategoryIcon";
+import { useExpenses } from "@/hooks/useExpenses";
+import { formatCurrency } from "@/lib/format";
+import { Trash2 } from "lucide-react";
+import { Button } from "./ui/button";
+import { BIKE_SUBTYPES } from "@/lib/categories";
+
+export function ExpenseListItem({ expense }: { expense: Expense }) {
+  const { categories, deleteExpense } = useExpenses();
+  const cat = categories.find((c) => c.id === expense.category);
+  const sub = expense.bikeSubType ? BIKE_SUBTYPES.find((s) => s.id === expense.bikeSubType) : null;
+  const icon = sub?.icon || cat?.icon || "Circle";
+  const color = sub?.color || cat?.color || "#94a3b8";
+  const date = new Date(expense.date).toLocaleDateString("en-US", { day: "numeric", month: "short" });
+
+  return (
+    <div className="group flex items-center gap-3 p-3 rounded-2xl hover:bg-secondary/60 transition-colors">
+      <CategoryIcon name={icon} color={color} size={20} className="h-11 w-11" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="font-medium truncate">{expense.title}</p>
+        </div>
+        <p className="text-xs text-muted-foreground capitalize">
+          {sub ? `${sub.name} • ` : `${cat?.name || expense.category} • `}{date}
+        </p>
+      </div>
+      <div className="text-right">
+        <p className="fin-number font-semibold">-{formatCurrency(expense.amount)}</p>
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => deleteExpense(expense.id)}
+        className="opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-destructive"
+        aria-label="Delete"
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
