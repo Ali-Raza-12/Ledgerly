@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, Clock, Bike, BarChart3, Plus, Wallet } from "lucide-react";
+import { Home, Clock, Bike, BarChart3, Plus, Wallet, HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
@@ -7,6 +7,7 @@ const items = [
   { to: "/add", label: "Add expense", icon: Plus },
   { to: "/history", label: "History", icon: Clock },
   { to: "/bike", label: "Bike Tracker", icon: Bike },
+  { to: "/lending", label: "Lending", icon: HandCoins },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
