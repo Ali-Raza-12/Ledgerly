@@ -63,7 +63,7 @@ export function AddExpense() {
         <div className="glass-card rounded-3xl p-6 text-center">
           <Label className="text-xs uppercase tracking-widest text-muted-foreground">Amount</Label>
           <div className="mt-3 flex items-center justify-center gap-2">
-            <span className="text-3xl text-muted-foreground">₹</span>
+            <span className="text-3xl text-muted-foreground">Rs</span>
             <input
               type="number"
               inputMode="decimal"

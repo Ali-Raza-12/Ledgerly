@@ -112,7 +112,7 @@ export function History() {
               type="number"
               value={minAmt}
               onChange={(e) => setMinAmt(e.target.value)}
-              placeholder="Min ₹"
+              placeholder="Min Rs"
               className="pl-9 h-11 rounded-xl bg-secondary border-border"
             />
           </div>
