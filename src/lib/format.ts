@@ -1,12 +1,12 @@
-export const formatCurrency = (amount: number, currency = "INR") => {
+export const formatCurrency = (amount: number, currency = "PKR") => {
   try {
-    return new Intl.NumberFormat("en-IN", {
+    return new Intl.NumberFormat("en-PK", {
       style: "currency",
       currency,
       maximumFractionDigits: 0,
     }).format(amount);
   } catch {
-    return `₹${amount.toFixed(0)}`;
+    return `Rs ${amount.toFixed(0)}`;
   }
 };
 
