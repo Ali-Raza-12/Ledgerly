@@ -151,3 +151,17 @@
 
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 }
+
+/* Hide native number-input stepper arrows across all browsers */
+@layer base {
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+}
