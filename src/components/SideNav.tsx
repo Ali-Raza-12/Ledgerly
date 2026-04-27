@@ -1,9 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { Home, Clock, Bike, BarChart3, Plus, Wallet, HandCoins } from "lucide-react";
+import { Home, Clock, Bike, BarChart3, Plus, Wallet, HandCoins, LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { to: "/", label: "Dashboard", icon: Home },
+  { to: "/balance", label: "Balance", icon: LineChart },
   { to: "/add", label: "Add expense", icon: Plus },
   { to: "/history", label: "History", icon: Clock },
   { to: "/bike", label: "Bike Tracker", icon: Bike },
@@ -13,7 +14,7 @@ const items = [
 
 export function SideNav() {
   return (
-    <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-border bg-sidebar/60 backdrop-blur-xl">
+    <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-border bg-sidebar/60 backdrop-blur-xl sticky top-0 h-screen self-start">
       <div className="flex items-center gap-3 px-6 h-20 border-b border-border">
         <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
           <Wallet className="h-5 w-5 text-primary-foreground" />
