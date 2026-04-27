@@ -28,6 +28,7 @@ import { deleteLedgerEntry } from "@/services/ledgerService";
 import type { Expense } from "@/types/expense";
 import type { Income } from "@/types/income";
 import type { LedgerEntry } from "@/types/ledger";
+import { Loader } from "@/components/Loader";
 
 interface UnifiedTxn {
   id: string;
@@ -189,7 +190,7 @@ export function Balance() {
   };
 
   if (loading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <Loader label="Loading balance" sublabel="Crunching your monthly cashflow" />;
   }
 
   return (

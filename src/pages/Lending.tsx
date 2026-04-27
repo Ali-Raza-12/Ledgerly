@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { PersonBalance } from "@/types/ledger";
 import { getLedger, deleteLedgerEntry } from "@/services/ledgerService";
+import { Loader } from "@/components/Loader";
 import { toast } from "sonner";
 
 export function Lending() {
@@ -121,7 +122,7 @@ export function Lending() {
   };
 
   if (loading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <Loader label="Loading lending" sublabel="Fetching balances and history" />;
   }
 
   return (
