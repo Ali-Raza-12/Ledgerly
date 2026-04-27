@@ -1,13 +1,28 @@
-import { Expense } from "@/types/expense";
+import { Category, Expense } from "@/types/expense";
 import { CategoryIcon } from "./CategoryIcon";
-import { useExpenses } from "@/hooks/useExpenses";
+import { getCategories } from "@/services/categoryService";
+import { deleteExpense } from "@/services/expenseService";
+import { useEffect, useState } from "react";
 import { formatCurrency } from "@/lib/format";
 import { Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { BIKE_SUBTYPES } from "@/lib/categories";
 
 export function ExpenseListItem({ expense }: { expense: Expense }) {
-  const { categories, deleteExpense } = useExpenses();
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data, error } = await getCategories();
+      if (error) {
+        return;
+      }
+      setCategories(data || []);
+    };
+
+    fetchCategories();
+  }, []);
+
   const cat = categories.find((c) => c.id === expense.category);
   const sub = expense.bikeSubType ? BIKE_SUBTYPES.find((s) => s.id === expense.bikeSubType) : null;
   const icon = sub?.icon || cat?.icon || "Circle";

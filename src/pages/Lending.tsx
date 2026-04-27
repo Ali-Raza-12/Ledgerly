@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { useLedger } from "@/hooks/useLedger";
+import { useMemo, useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { formatCurrency } from "@/lib/format";
 import { AddLedgerDialog } from "@/components/AddLedgerDialog";
@@ -19,17 +18,111 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PersonBalance } from "@/types/ledger";
+import { getLedger, deleteLedgerEntry } from "@/services/ledgerService";
+import { toast } from "sonner";
 
 export function Lending() {
-  const { balances, totals, deleteEntry } = useLedger();
+  const [balances, setBalances] = useState<PersonBalance[]>([]);
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [openPerson, setOpenPerson] = useState<string | null>(null);
+
+  // Fetch ledger data
+  useEffect(() => {
+    const loadLedger = async () => {
+      const { data, error } = await getLedger();
+
+      if (error) {
+        console.error(error);
+        toast.error("Failed to load lending data");
+        setLoading(false);
+        return;
+      }
+
+      const entries = data || [];
+
+      // convert raw ledger → PersonBalance
+      const map = new Map<string, PersonBalance>();
+
+      for (const e of entries) {
+        const key = e.person.trim().toLowerCase();
+
+        const existing = map.get(key) || {
+          person: e.person,
+          net: 0,
+          totalLent: 0,
+          totalBorrowed: 0,
+          entries: [],
+        };
+
+        let delta = 0;
+
+        if (e.entryType === "loan") {
+          delta = e.direction === "lent" ? e.amount : -e.amount;
+
+          if (e.direction === "lent") existing.totalLent += e.amount;
+          else existing.totalBorrowed += e.amount;
+        } else {
+          delta = e.direction === "lent" ? -e.amount : e.amount;
+        }
+
+        existing.net += delta;
+        existing.entries.push(e);
+
+        map.set(key, existing);
+      }
+
+      setBalances([...map.values()].sort((a, b) => Math.abs(b.net) - Math.abs(a.net)));
+      setLoading(false);
+    };
+
+    loadLedger();
+  }, []);
+
+  const totals = useMemo(() => {
+    let youAreOwed = 0;
+    let youOwe = 0;
+    for (const b of balances) {
+      if (b.net > 0) {
+        youAreOwed += b.net;
+      } else {
+        youOwe += Math.abs(b.net);
+      }
+    }
+    return { youAreOwed, youOwe, net: youAreOwed - youOwe };
+  }, [balances]);
 
   const filtered = useMemo(() => {
     if (!q.trim()) return balances;
     const s = q.toLowerCase();
     return balances.filter((b) => b.person.toLowerCase().includes(s));
   }, [balances, q]);
+
+  // Handle delete with UI update
+  const handleDeleteEntry = async (id: string) => {
+    try {
+      const { error } = await deleteLedgerEntry(id);
+      if (error) throw error;
+      
+      // Update local state
+      setBalances((prev) =>
+        prev
+          .map((p) => ({
+            ...p,
+            entries: p.entries.filter((e) => e.id !== id),
+          }))
+          .filter((p) => p.entries.length > 0)
+      );
+      toast.success("Entry deleted");
+    } catch (err) {
+      console.error("Error deleting entry:", err);
+      toast.error("Failed to delete entry");
+    }
+  };
+
+  if (loading) {
+    return <div className="text-center py-10">Loading...</div>;
+  }
 
   return (
     <div className="animate-fade-in">
@@ -134,7 +227,7 @@ export function Lending() {
               onToggle={() =>
                 setOpenPerson(openPerson === p.person.toLowerCase() ? null : p.person.toLowerCase())
               }
-              onDelete={deleteEntry}
+              onDelete={handleDeleteEntry}
             />
           ))}
         </div>

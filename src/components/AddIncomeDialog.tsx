@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useIncome } from "@/hooks/useIncome";
-import { todayISO } from "@/lib/format";
+import { monthKey, todayISO } from "@/lib/format";
 import { toast } from "sonner";
 import { Check, Briefcase, PiggyBank, Gift, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { IncomeSource } from "@/types/income";
+import { addIncome } from "@/services/incomeService";
 
 interface Props {
   trigger: React.ReactNode;
@@ -24,7 +24,6 @@ const SOURCES: { id: IncomeSource; label: string; icon: typeof Briefcase }[] = [
 ];
 
 export function AddIncomeDialog({ trigger, defaultMonth }: Props) {
-  const { addIncome } = useIncome();
   const [open, setOpen] = useState(false);
   const initialDate = (() => {
     if (!defaultMonth) return todayISO();
@@ -46,20 +45,29 @@ export function AddIncomeDialog({ trigger, defaultMonth }: Props) {
     setNote("");
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) {
       toast.error("Enter a valid amount");
       return;
     }
-    addIncome({
+
+    const { error } = await addIncome({
       title: title.trim() || SOURCES.find((s) => s.id === source)!.label,
       amount: amt,
       source,
       date,
+      month: monthKey(date),
       note: note.trim() || undefined,
     });
+
+    if (error) {
+      toast.error("Failed to add income");
+      console.error(error);
+      return;
+    }
+
     toast.success("Income added");
     reset();
     setOpen(false);

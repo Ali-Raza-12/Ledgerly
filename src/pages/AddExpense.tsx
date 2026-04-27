@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useExpenses } from "@/hooks/useExpenses";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,10 +10,12 @@ import { todayISO } from "@/lib/format";
 import { toast } from "sonner";
 import { ArrowLeft, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BikeSubType } from "@/types/expense";
+import type { BikeSubType, Category } from "@/types/expense";
+import { addExpense } from "@/services/expenseService";  
+import { getCategories } from "@/services/categoryService";
 
 export function AddExpense() {
-  const { categories, addExpense } = useExpenses();
+  const [categories, setCategories] = useState<Category[]>([]);
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
@@ -26,14 +27,28 @@ export function AddExpense() {
   const selectedCat = categories.find((c) => c.id === categoryId);
   const isBike = selectedCat?.type === "bike";
 
-  const submit = (e?: React.FormEvent) => {
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data, error } = await getCategories();
+      if (error) {
+        toast.error("Failed to fetch categories");
+        return;
+      }
+      setCategories(data || []);
+    };
+
+    fetchCategories();
+  }, []);
+
+  const submit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     const amt = parseFloat(amount);
     if (!title.trim() || !amt || amt <= 0) {
       toast.error("Enter a title and amount");
       return;
     }
-    addExpense({
+
+    const expenseData = {
       title: title.trim(),
       amount: amt,
       category: categoryId,
@@ -41,9 +56,18 @@ export function AddExpense() {
       bikeSubType: isBike ? bikeSub : undefined,
       date,
       note: note.trim() || undefined,
-    });
-    toast.success("Expense added");
-    navigate("/");
+    }
+    const { data, error } = await addExpense(expenseData);
+
+    if (error) {
+      toast.error("Failed to add expense");
+      return;
+    }
+
+    if (data) {
+      toast.success("Expense added");
+      navigate("/");
+    }
   };
 
   return (

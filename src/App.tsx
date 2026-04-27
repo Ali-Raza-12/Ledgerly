@@ -3,9 +3,6 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ExpensesProvider } from "@/hooks/useExpenses";
-import { LedgerProvider } from "@/hooks/useLedger";
-import { IncomeProvider } from "@/hooks/useIncome";
 import { AppLayout } from "@/components/AppLayout";
 import Index from "./pages/Index.tsx";
 import { AddExpense } from "./pages/AddExpense";
@@ -16,16 +13,34 @@ import { Lending } from "./pages/Lending";
 import { Balance } from "./pages/Balance";
 import NotFound from "./pages/NotFound.tsx";
 
+import { supabase } from "./lib/supabaseClient";
+
 const queryClient = new QueryClient();
 
+import { useEffect } from "react";
+
+
+const testSupabase = async () => {
+  const { data, error } = await supabase
+    .from("test_connection")
+    .select("*");
+
+  console.log("DATA:", data);
+  console.log("ERROR:", error);
+};
+
+
 const App = () => (
+
+  
+useEffect(() => {
+  testSupabase();
+}, []),
+
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <ExpensesProvider>
-        <IncomeProvider>
-          <LedgerProvider>
             <BrowserRouter>
               <AppLayout>
                 <Routes>
@@ -40,11 +55,11 @@ const App = () => (
                 </Routes>
               </AppLayout>
             </BrowserRouter>
-          </LedgerProvider>
-        </IncomeProvider>
-      </ExpensesProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
 
 export default App;
+
+
+

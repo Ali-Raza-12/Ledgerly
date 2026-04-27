@@ -1,8 +1,9 @@
-import { useMemo } from "react";
-import { useExpenses } from "./useExpenses";
-import { useLedger } from "./useLedger";
-import { useIncome } from "./useIncome";
+import { useEffect, useMemo, useState } from "react";
 import { monthKey } from "@/lib/format";
+import { getCashflowData } from "@/services/cashFlowService";
+import type { Expense } from "@/types/expense";
+import type { Income } from "@/types/income";
+import type { LedgerEntry } from "@/types/ledger";
 
 export type TxnKind = "income" | "expense" | "given" | "received";
 
@@ -20,9 +21,28 @@ export interface UnifiedTxn {
 }
 
 export function useCashflow() {
-  const { expenses } = useExpenses();
-  const { entries: ledger } = useLedger();
-  const { incomes } = useIncome();
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+  const [incomes, setIncomes] = useState<Income[]>([]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadCashflow = async () => {
+      const data = await getCashflowData();
+      if (!active) return;
+
+      setExpenses(data.expenses);
+      setIncomes(data.incomes);
+      setLedger(data.ledger);
+    };
+
+    loadCashflow();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const txns: UnifiedTxn[] = useMemo(() => {
     const out: UnifiedTxn[] = [];

@@ -1,12 +1,40 @@
-import { useMemo } from "react";
-import { useExpenses } from "@/hooks/useExpenses";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { formatCurrency, monthKey, monthShort, previousMonth, todayISO } from "@/lib/format";
 import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, PieChart, Pie, Cell } from "recharts";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { Category, Expense } from "@/types/expense";
+import { getExpenses } from "@/services/expenseService";
+import { toast } from "sonner";
+import { getCategories } from "@/services/categoryService";
 
 export function Analytics() {
-  const { expenses, categories } = useExpenses();
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      const { data, error } = await getExpenses();
+      if (error) {
+        toast.error("Failed to fetch expenses");
+        return;
+      }
+      setExpenses(data || []);
+    };
+
+    const fetchCategories = async () => {
+      const { data, error } = await getCategories();
+      if (error) {
+        toast.error("Failed to fetch categories");
+        return;
+      }
+      setCategories(data || []);
+    };
+
+    fetchExpenses();
+    fetchCategories();
+  }, []);
+
   const current = monthKey(todayISO());
   const prev = previousMonth(current);
 

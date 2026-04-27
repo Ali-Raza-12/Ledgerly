@@ -1,10 +1,16 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useLedger } from "@/hooks/useLedger";
+import { addLedgerEntry } from "@/services/ledgerService";
 import { todayISO } from "@/lib/format";
 import { toast } from "sonner";
 import { ArrowDownLeft, ArrowUpRight, Check } from "lucide-react";
@@ -18,8 +24,28 @@ interface Props {
   defaultDirection?: LedgerDirection;
 }
 
-export function AddLedgerDialog({ trigger, defaultPerson = "", defaultEntryType = "loan", defaultDirection = "lent" }: Props) {
-  const { addEntry } = useLedger();
+export function AddLedgerDialog({
+  trigger,
+  defaultPerson = "",
+  defaultEntryType = "loan",
+  defaultDirection = "lent",
+}: Props) {
+  const addEntry = async (
+    entry: Omit<Parameters<typeof addLedgerEntry>[0], "id">,
+  ) => {
+    const { error } = await addLedgerEntry(entry);
+    if (error) {
+      toast.error("Failed to save entry");
+      console.error(error);
+      return false;
+    }
+
+    toast.success(
+      entry.entryType === "loan" ? "Recorded" : "Settlement saved",
+    );
+    return true;
+  };
+
   const [open, setOpen] = useState(false);
   const [person, setPerson] = useState(defaultPerson);
   const [amount, setAmount] = useState("");
@@ -37,21 +63,37 @@ export function AddLedgerDialog({ trigger, defaultPerson = "", defaultEntryType 
     setNote("");
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseFloat(amount);
     if (!person.trim() || !amt || amt <= 0) {
       toast.error("Enter a name and amount");
       return;
     }
-    addEntry({ person: person.trim(), amount: amt, direction, entryType, date, note: note.trim() || undefined });
-    toast.success(entryType === "loan" ? "Recorded" : "Settlement saved");
+
+    const saved = await addEntry({
+      person: person.trim(),
+      amount: amt,
+      direction,
+      entryType,
+      date,
+      note: note.trim() || undefined,
+    });
+
+    if (!saved) return;
+
     reset();
     setOpen(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) reset();
+      }}
+    >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="glass-card border-border max-w-md rounded-3xl">
         <DialogHeader>
@@ -61,8 +103,18 @@ export function AddLedgerDialog({ trigger, defaultPerson = "", defaultEntryType 
         <form onSubmit={submit} className="space-y-4">
           {/* Entry type tabs */}
           <div className="grid grid-cols-2 gap-2 p-1 bg-secondary rounded-xl">
-            <TabButton active={entryType === "loan"} onClick={() => setEntryType("loan")}>New loan</TabButton>
-            <TabButton active={entryType === "settlement"} onClick={() => setEntryType("settlement")}>Settlement</TabButton>
+            <TabButton
+              active={entryType === "loan"}
+              onClick={() => setEntryType("loan")}
+            >
+              New loan
+            </TabButton>
+            <TabButton
+              active={entryType === "settlement"}
+              onClick={() => setEntryType("settlement")}
+            >
+              Settlement
+            </TabButton>
           </div>
 
           {/* Direction */}
@@ -144,14 +196,24 @@ export function AddLedgerDialog({ trigger, defaultPerson = "", defaultEntryType 
   );
 }
 
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
         "py-2 rounded-lg text-sm font-medium transition-colors",
-        active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+        active
+          ? "bg-background text-foreground shadow-sm"
+          : "text-muted-foreground",
       )}
     >
       {children}
@@ -159,7 +221,19 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   );
 }
 
-function DirBtn({ active, onClick, icon, label, tone }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; tone: "primary" | "warning" }) {
+function DirBtn({
+  active,
+  onClick,
+  icon,
+  label,
+  tone,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  tone: "primary" | "warning";
+}) {
   return (
     <button
       type="button"
@@ -170,7 +244,7 @@ function DirBtn({ active, onClick, icon, label, tone }: { active: boolean; onCli
           ? tone === "primary"
             ? "border-primary/40 bg-primary/10 text-primary"
             : "border-warning/40 bg-warning/10 text-warning"
-          : "border-border bg-secondary/50 text-muted-foreground"
+          : "border-border bg-secondary/50 text-muted-foreground",
       )}
     >
       {icon}

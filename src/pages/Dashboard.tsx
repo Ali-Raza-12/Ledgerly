@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { useExpenses } from "@/hooks/useExpenses";
+import { useEffect, useMemo, useState } from "react";
 import { formatCurrency, monthKey, monthLabel, previousMonth, todayISO } from "@/lib/format";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { ArrowDownRight, ArrowUpRight, TrendingUp, Wallet } from "lucide-react";
@@ -7,9 +6,38 @@ import { Progress } from "@/components/ui/progress";
 import { ExpenseListItem } from "@/components/ExpenseListItem";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { getExpenses } from "@/services/expenseService";
+import { getCategories } from "@/services/categoryService";
+import { getBudget } from "@/services/budgetService";
+import { Category, Expense } from "@/types/expense";
+import { toast } from "sonner";
 
 export function Dashboard() {
-  const { expenses, categories, getBudget } = useExpenses();
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      const { data, error } = await getExpenses();
+      if (error) {
+        toast.error("Failed to fetch expenses");
+        return;
+      } 
+      setExpenses(data || []);
+    };
+    const fetchCategories = async () => {
+      const { data, error } = await getCategories();
+      if (error) {
+        toast.error("Failed to fetch categories");
+        return;
+      }
+      setCategories(data || []);
+    };
+
+    fetchExpenses();
+    fetchCategories();
+  }, []);
+
   const currentMonth = monthKey(todayISO());
   const prevMonth = previousMonth(currentMonth);
 

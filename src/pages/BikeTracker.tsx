@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { useExpenses } from "@/hooks/useExpenses";
+import { useMemo, useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { BIKE_SUBTYPES } from "@/lib/categories";
 import { CategoryIcon } from "@/components/CategoryIcon";
@@ -8,9 +7,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Bike, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
+import { getExpenses } from "@/services/expenseService";
+import { Expense } from "@/types/expense";
+import { toast } from "sonner";
 
 export function BikeTracker() {
-  const { expenses } = useExpenses();
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data, error } = await getExpenses();
+      if (error) {
+        toast.error("Failed to fetch expenses");
+        return;
+      }
+      setExpenses(data || []);
+    };
+
+    fetchData();
+  }, []);
+
   const months = useMemo(
     () => [...new Set(expenses.map((e) => e.month))].sort().reverse(),
     [expenses]

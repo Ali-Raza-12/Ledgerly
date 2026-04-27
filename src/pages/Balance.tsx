@@ -1,7 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { useCashflow, type UnifiedTxn } from "@/hooks/useCashflow";
-import { useIncome } from "@/hooks/useIncome";
 import { formatCurrency, monthKey, monthLabel, todayISO } from "@/lib/format";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -23,8 +21,28 @@ import {
   Briefcase,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useExpenses } from "@/hooks/useExpenses";
-import { useLedger } from "@/hooks/useLedger";
+import { getCashflowData } from "@/services/cashFlowService";
+import { deleteExpense } from "@/services/expenseService";
+import { deleteIncome } from "@/services/incomeService";
+import { deleteLedgerEntry } from "@/services/ledgerService";
+import type { Expense } from "@/types/expense";
+import type { Income } from "@/types/income";
+import type { LedgerEntry } from "@/types/ledger";
+
+interface UnifiedTxn {
+  id: string;
+  kind: "income" | "expense" | "given" | "received";
+  title: string;
+  subtitle?: string;
+  amount: number;
+  signed: number;
+  date: string;
+  month: string;
+  category?: string;
+  meta?: string;
+}
+
+
 
 const dayLabel = (iso: string) => {
   const d = new Date(iso);
@@ -39,20 +57,86 @@ const dayLabel = (iso: string) => {
 };
 
 export function Balance() {
-  const { txns, totalsForMonth, months } = useCashflow();
-  const { incomes, deleteIncome } = useIncome();
-  const { deleteExpense } = useExpenses();
-  const { deleteEntry } = useLedger();
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [incomes, setIncomes] = useState<Income[]>([]);
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const current = monthKey(todayISO());
   const [month, setMonth] = useState<string>(current);
   const [hidden, setHidden] = useState(true);
+
+  // Fetch data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      const { expenses: exp, incomes: inc, ledger } = await getCashflowData();
+      setExpenses(exp);
+      setIncomes(inc);
+      setLedgerEntries(ledger);
+      setLoading(false);
+    };
+    fetchData();
+  }, []);
+
+  // Build unified transactions list
+  const txns = useMemo(() => {
+    const out: UnifiedTxn[] = [];
+
+    for (const i of incomes) {
+      out.push({
+        id: `inc-${i.id}`,
+        kind: "income",
+        title: i.title,
+        subtitle: i.source,
+        amount: i.amount,
+        signed: i.amount,
+        date: i.date,
+        month: i.month,
+        category: i.source,
+      });
+    }
+
+    for (const e of expenses) {
+      out.push({
+        id: `exp-${e.id}`,
+        kind: "expense",
+        title: e.title,
+        amount: e.amount,
+        signed: -e.amount,
+        date: e.date,
+        month: e.month,
+        category: e.category,
+      });
+    }
+
+    for (const l of ledgerEntries) {
+      const isLent = l.direction === "lent";
+      const isPaid = l.entryType === "settlement";
+      out.push({
+        id: `lg-${l.id}`,
+        kind: isLent ? "given" : "received",
+        title: l.person,
+        amount: l.amount,
+        signed: isLent ? -l.amount : l.amount,
+        date: l.date,
+        month: l.date.substring(0, 7),
+        category: l.person,
+        meta: isPaid ? "Settlement" : "Loan",
+      });
+    }
+
+    return out.sort((a, b) => b.date.localeCompare(a.date));
+  }, [expenses, incomes, ledgerEntries]);
+
+  const months = useMemo(() => {
+    const set = new Set<string>(txns.map((t) => t.month));
+    return [...set].sort().reverse();
+  }, [txns]);
 
   const monthOptions = useMemo(() => {
     const set = new Set<string>([current, ...months]);
     return [...set].sort().reverse();
   }, [months, current]);
 
-  const totals = totalsForMonth(month);
   const monthTxns = useMemo(() => txns.filter((t) => t.month === month), [txns, month]);
 
   const grouped = useMemo(() => {
@@ -65,18 +149,48 @@ export function Balance() {
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   }, [monthTxns]);
 
-  const monthIncomes = useMemo(() => incomes.filter((i) => i.month === month), [incomes, month]);
+  const totalsForMonth = (m: string) => {
+    const mt = txns.filter((t) => t.month === m);
+    const income = mt.filter((t) => t.kind === "income").reduce((s, t) => s + t.amount, 0);
+    const expense = mt.filter((t) => t.kind === "expense").reduce((s, t) => s + t.amount, 0);
+    const given = mt.filter((t) => t.kind === "given").reduce((s, t) => s + t.amount, 0);
+    const received = mt.filter((t) => t.kind === "received").reduce((s, t) => s + t.amount, 0);
+    return {
+      income,
+      expense,
+      given,
+      received,
+      balance: income - expense + received - given,
+    };
+  };
+
+  const totals = totalsForMonth(month);
 
   const mask = (txt: string) => (hidden ? "•••••" : txt);
   const balance = totals.balance;
   const balancePositive = balance >= 0;
 
-  const onDeleteTxn = (t: UnifiedTxn) => {
+  const onDeleteTxn = async (t: UnifiedTxn) => {
     const rawId = t.id.replace(/^(inc|exp|lg)-/, "");
-    if (t.id.startsWith("inc-")) deleteIncome(rawId);
-    else if (t.id.startsWith("exp-")) deleteExpense(rawId);
-    else if (t.id.startsWith("lg-")) deleteEntry(rawId);
+    try {
+      if (t.id.startsWith("inc-")) {
+        await deleteIncome(rawId);
+        setIncomes((prev) => prev.filter((i) => i.id !== rawId));
+      } else if (t.id.startsWith("exp-")) {
+        await deleteExpense(rawId);
+        setExpenses((prev) => prev.filter((e) => e.id !== rawId));
+      } else if (t.id.startsWith("lg-")) {
+        await deleteLedgerEntry(rawId);
+        setLedgerEntries((prev) => prev.filter((l) => l.id !== rawId));
+      }
+    } catch (err) {
+      console.error("Error deleting transaction:", err);
+    }
   };
+
+  if (loading) {
+    return <div className="text-center py-10">Loading...</div>;
+  }
 
   return (
     <div className="animate-fade-in pb-12">
@@ -194,41 +308,6 @@ export function Balance() {
           }
         />
       </section>
-
-      {/* Income sources for the month */}
-      {monthIncomes.length > 0 && (
-        <section className="glass-card rounded-3xl p-4 mb-5">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Briefcase className="h-4 w-4 text-primary" /> Income this month
-            </h3>
-            <span className="text-xs text-muted-foreground">{monthIncomes.length} entries</span>
-          </div>
-          <div className="space-y-1.5">
-            {monthIncomes.map((i) => (
-              <div key={i.id} className="group flex items-center gap-3 p-2.5 rounded-xl hover:bg-secondary/40 transition-colors">
-                <span className="h-9 w-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                  <Briefcase className="h-4 w-4" />
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{i.title}</p>
-                  <p className="text-xs text-muted-foreground capitalize">
-                    {i.source} • {new Date(i.date).toLocaleDateString("en-US", { day: "numeric", month: "short" })}
-                  </p>
-                </div>
-                <p className="fin-number font-semibold text-primary">+{mask(formatCurrency(i.amount))}</p>
-                <button
-                  onClick={() => deleteIncome(i.id)}
-                  className="opacity-0 group-hover:opacity-100 h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive transition-colors"
-                  aria-label="Delete"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Transaction history */}
       <section>

@@ -1,33 +1,61 @@
-import { useMemo, useState } from "react";
-import { useExpenses } from "@/hooks/useExpenses";
+import { useMemo, useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Search, SlidersHorizontal, Download } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ExpenseListItem } from "@/components/ExpenseListItem";
 import { formatCurrency, monthLabel } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { getExpenses } from "@/services/expenseService";
+import { Category, Expense } from "@/types/expense";
 
 export function History() {
-  const { expenses, categories } = useExpenses();
+  const [categories, setCategories] = useState<Category[]>([]);
   const [q, setQ] = useState("");
   const [month, setMonth] = useState<string>("all");
   const [cat, setCat] = useState<string>("all");
   const [minAmt, setMinAmt] = useState("");
 
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data, error } = await getExpenses();
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      setExpenses(data || []);
+    };
+
+    fetchData();
+  }, []);
+
   const months = useMemo(() => {
-    return [...new Set(expenses.map((e) => e.month))].sort().reverse();
+    return [...new Set(expenses.map((e) => e.date.slice(0, 7)))].sort().reverse();
   }, [expenses]);
 
   const filtered = useMemo(() => {
     return expenses.filter((e) => {
-      if (month !== "all" && e.month !== month) return false;
+      if (month !== "all" && e.date.slice(0, 7) !== month) return false;
       if (cat !== "all" && e.category !== cat) return false;
       if (minAmt && e.amount < parseFloat(minAmt)) return false;
       if (q) {
         const s = q.toLowerCase();
-        if (!e.title.toLowerCase().includes(s) && !(e.note || "").toLowerCase().includes(s)) return false;
+        if (
+          !(e.title || "").toLowerCase().includes(s) &&
+          !(e.note || "").toLowerCase().includes(s)
+        )
+          return false;
       }
       return true;
     });
@@ -36,21 +64,33 @@ export function History() {
   const grouped = useMemo(() => {
     const map = new Map<string, typeof filtered>();
     for (const e of filtered) {
-      const arr = map.get(e.month) || [];
+      const arr = map.get(e.date.slice(0, 7)) || [];
       arr.push(e);
-      map.set(e.month, arr);
+      map.set(e.date.slice(0, 7), arr);
     }
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   }, [filtered]);
 
-  const total = filtered.reduce((s, e) => s + e.amount, 0);
+  const total = filtered.reduce((s, e) => s + Number(e.amount), 0);
 
   const exportCSV = () => {
-    const rows = [["Date", "Title", "Category", "Type", "Sub", "Amount", "Note"]];
+    const rows = [
+      ["Date", "Title", "Category", "Type", "Sub", "Amount", "Note"],
+    ];
     for (const e of filtered) {
-      rows.push([e.date, e.title, e.category, e.type, e.bikeSubType || "", String(e.amount), e.note || ""]);
+      rows.push([
+        e.date,
+        e.title,
+        e.category,
+        e.type,
+        e.bikeSubType || "",
+        String(e.amount),
+        e.note || "",
+      ]);
     }
-    const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = rows
+      .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(","))
+      .join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -67,7 +107,12 @@ export function History() {
         title="History"
         subtitle={`${filtered.length} transactions • ${formatCurrency(total)}`}
         action={
-          <Button variant="outline" size="sm" onClick={exportCSV} className="rounded-xl">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportCSV}
+            className="rounded-xl"
+          >
             <Download className="h-4 w-4 mr-1.5" /> Export
           </Button>
         }
@@ -91,7 +136,9 @@ export function History() {
             <SelectContent>
               <SelectItem value="all">All months</SelectItem>
               {months.map((m) => (
-                <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>
+                <SelectItem key={m} value={m}>
+                  {monthLabel(m)}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -102,7 +149,9 @@ export function History() {
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
               {categories.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -130,11 +179,17 @@ export function History() {
             return (
               <section key={m}>
                 <div className="flex items-center justify-between px-2 mb-2">
-                  <h3 className="text-xs uppercase tracking-widest text-muted-foreground">{monthLabel(m)}</h3>
-                  <span className="text-xs fin-number text-muted-foreground">{formatCurrency(monthTotal)}</span>
+                  <h3 className="text-xs uppercase tracking-widest text-muted-foreground">
+                    {monthLabel(m)}
+                  </h3>
+                  <span className="text-xs fin-number text-muted-foreground">
+                    {formatCurrency(monthTotal)}
+                  </span>
                 </div>
                 <div className="glass-card rounded-3xl p-2 space-y-1">
-                  {items.map((e) => <ExpenseListItem key={e.id} expense={e} />)}
+                  {items.map((e) => (
+                    <ExpenseListItem key={e.id} expense={e} />
+                  ))}
                 </div>
               </section>
             );
