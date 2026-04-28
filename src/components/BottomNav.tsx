@@ -1,10 +1,11 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, Bike, BarChart3, Plus, LineChart } from "lucide-react";
+import { Home, Clock, Bike, BarChart3, Plus, HandCoins, LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { to: "/", label: "Home", icon: Home },
   { to: "/balance", label: "Balance", icon: LineChart },
+  { to: "/lending", label: "Lending", icon: HandCoins },
   { to: "/bike", label: "Bike", icon: Bike },
   { to: "/analytics", label: "Stats", icon: BarChart3 },
 ];
@@ -16,7 +17,7 @@ export function BottomNav() {
   return (
     <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 safe-bottom">
       <div className="mx-3 mb-3 glass-surface rounded-3xl shadow-card">
-        <div className="grid grid-cols-5 items-center px-2 py-2">
+        <div className="grid grid-cols-6 items-center px-2 py-2">
           {items.slice(0, 2).map((it) => (
             <NavItem key={it.to} {...it} active={pathname === it.to} />
           ))}

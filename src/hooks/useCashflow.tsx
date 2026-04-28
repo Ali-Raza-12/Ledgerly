@@ -87,7 +87,6 @@ export function useCashflow() {
       out.push({
         id: `lg-${l.id}`,
         kind,
-        month: monthKey(l.date),
         title:
           l.entryType === "loan"
             ? isOut
