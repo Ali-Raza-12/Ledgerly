@@ -12,30 +12,10 @@ import { Analytics } from "./pages/Analytics";
 import { Lending } from "./pages/Lending";
 import { Balance } from "./pages/Balance";
 import NotFound from "./pages/NotFound.tsx";
-
-import { supabase } from "./lib/supabaseClient";
-
 const queryClient = new QueryClient();
-
-import { useEffect } from "react";
-
-
-const testSupabase = async () => {
-  const { data, error } = await supabase
-    .from("test_connection")
-    .select("*");
-
-  console.log("DATA:", data);
-  console.log("ERROR:", error);
-};
 
 
 const App = () => (
-
-  
-useEffect(() => {
-  testSupabase();
-}, []),
 
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>

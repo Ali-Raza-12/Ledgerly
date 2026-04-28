@@ -28,14 +28,14 @@ export function BikeTracker() {
   }, []);
 
   const months = useMemo(
-    () => [...new Set(expenses.map((e) => e.month))].sort().reverse(),
+    () => [...new Set(expenses.map((e) => monthKey(e.date)).filter(Boolean))].sort().reverse(),
     [expenses]
   );
   const [month, setMonth] = useState<string>(monthKey(todayISO()));
 
   const data = useMemo(() => {
     const all = expenses.filter((e) => e.type === "bike");
-    const inMonth = all.filter((e) => e.month === month);
+    const inMonth = all.filter((e) => monthKey(e.date) === month);
     const total = inMonth.reduce((s, e) => s + e.amount, 0);
     const bySub = new Map<string, number>();
     for (const e of inMonth) bySub.set(e.bikeSubType || "other", (bySub.get(e.bikeSubType || "other") || 0) + e.amount);

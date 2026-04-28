@@ -14,6 +14,7 @@ import { addIncome } from "@/services/incomeService";
 interface Props {
   trigger: React.ReactNode;
   defaultMonth?: string; // yyyy-mm — used to suggest a date
+  onSuccess?: (income: any) => void;
 }
 
 const SOURCES: { id: IncomeSource; label: string; icon: typeof Briefcase }[] = [
@@ -23,7 +24,7 @@ const SOURCES: { id: IncomeSource; label: string; icon: typeof Briefcase }[] = [
   { id: "other", label: "Other", icon: Wallet },
 ];
 
-export function AddIncomeDialog({ trigger, defaultMonth }: Props) {
+export function AddIncomeDialog({ trigger, defaultMonth, onSuccess }: Props) {
   const [open, setOpen] = useState(false);
   const initialDate = (() => {
     if (!defaultMonth) return todayISO();
@@ -53,12 +54,11 @@ export function AddIncomeDialog({ trigger, defaultMonth }: Props) {
       return;
     }
 
-    const { error } = await addIncome({
+    const { data, error } = await addIncome({
       title: title.trim() || SOURCES.find((s) => s.id === source)!.label,
       amount: amt,
       source,
       date,
-      month: monthKey(date),
       note: note.trim() || undefined,
     });
 
@@ -69,6 +69,9 @@ export function AddIncomeDialog({ trigger, defaultMonth }: Props) {
     }
 
     toast.success("Income added");
+    if (data && onSuccess) {
+      onSuccess(data[0]);
+    }
     reset();
     setOpen(false);
   };

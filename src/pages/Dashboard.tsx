@@ -42,8 +42,8 @@ export function Dashboard() {
   const prevMonth = previousMonth(currentMonth);
 
   const data = useMemo(() => {
-    const monthExp = expenses.filter((e) => e.month === currentMonth);
-    const prevExp = expenses.filter((e) => e.month === prevMonth);
+    const monthExp = expenses.filter((e) => monthKey(e.date) === currentMonth);
+    const prevExp = expenses.filter((e) => monthKey(e.date) === prevMonth);
     const total = monthExp.reduce((s, e) => s + e.amount, 0);
     const prevTotal = prevExp.reduce((s, e) => s + e.amount, 0);
     const today = todayISO();
@@ -170,7 +170,13 @@ export function Dashboard() {
           <p className="text-sm text-muted-foreground py-6 text-center">No activity yet — tap + to add your first expense.</p>
         ) : (
           <div className="space-y-1">
-            {recent.map((e) => <ExpenseListItem key={e.id} expense={e} />)}
+            {recent.map((e) => (
+              <ExpenseListItem 
+                key={e.id} 
+                expense={e}
+                onDelete={(id) => setExpenses((prev) => prev.filter((exp) => exp.id !== id))}
+              />
+            ))}
           </div>
         )}
       </section>

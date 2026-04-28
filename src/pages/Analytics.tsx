@@ -40,7 +40,7 @@ export function Analytics() {
 
   const monthlyData = useMemo(() => {
     const map = new Map<string, number>();
-    for (const e of expenses) map.set(e.month, (map.get(e.month) || 0) + e.amount);
+    for (const e of expenses) map.set(monthKey(e.date), (map.get(monthKey(e.date)) || 0) + e.amount);
     const last6: { month: string; label: string; total: number }[] = [];
     const today = new Date();
     for (let i = 5; i >= 0; i--) {
@@ -53,7 +53,7 @@ export function Analytics() {
 
   const pie = useMemo(() => {
     const map = new Map<string, number>();
-    for (const e of expenses.filter((x) => x.month === current)) {
+    for (const e of expenses.filter((x) => monthKey(x.date) === current)) {
       map.set(e.category, (map.get(e.category) || 0) + e.amount);
     }
     return [...map.entries()].map(([id, value]) => {
@@ -63,7 +63,7 @@ export function Analytics() {
   }, [expenses, categories, current]);
 
   const currentTotal = monthlyData[monthlyData.length - 1]?.total || 0;
-  const prevTotal = expenses.filter((e) => e.month === prev).reduce((s, e) => s + e.amount, 0);
+  const prevTotal = expenses.filter((e) => monthKey(e.date) === prev).reduce((s, e) => s + e.amount, 0);
   const change = prevTotal === 0 ? 0 : ((currentTotal - prevTotal) / prevTotal) * 100;
   const up = change > 0;
 

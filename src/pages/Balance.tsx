@@ -91,7 +91,7 @@ export function Balance() {
         amount: i.amount,
         signed: i.amount,
         date: i.date,
-        month: i.month,
+        month: monthKey(i.date),
         category: i.source,
       });
     }
@@ -104,7 +104,7 @@ export function Balance() {
         amount: e.amount,
         signed: -e.amount,
         date: e.date,
-        month: e.month,
+        month: monthKey(e.date),
         category: e.category,
       });
     }
@@ -119,7 +119,7 @@ export function Balance() {
         amount: l.amount,
         signed: isLent ? -l.amount : l.amount,
         date: l.date,
-        month: l.date.substring(0, 7),
+        month: monthKey(l.date),
         category: l.person,
         meta: isPaid ? "Settlement" : "Loan",
       });
@@ -129,7 +129,7 @@ export function Balance() {
   }, [expenses, incomes, ledgerEntries]);
 
   const months = useMemo(() => {
-    const set = new Set<string>(txns.map((t) => t.month));
+    const set = new Set<string>(txns.map((t) => t.month).filter(Boolean));
     return [...set].sort().reverse();
   }, [txns]);
 
@@ -201,6 +201,7 @@ export function Balance() {
         action={
           <AddIncomeDialog
             defaultMonth={month}
+            onSuccess={(newIncome) => setIncomes((prev) => [newIncome, ...prev])}
             trigger={
               <Button size="sm" className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow">
                 <Plus className="h-4 w-4 mr-1" /> Income

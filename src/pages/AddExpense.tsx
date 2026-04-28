@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { BIKE_SUBTYPES } from "@/lib/categories";
-import { todayISO } from "@/lib/format";
+import { todayISO, monthKey } from "@/lib/format";
 import { toast } from "sonner";
 import { ArrowLeft, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -57,6 +57,7 @@ export function AddExpense() {
       date,
       note: note.trim() || undefined,
     }
+    
     const { data, error } = await addExpense(expenseData);
 
     if (error) {

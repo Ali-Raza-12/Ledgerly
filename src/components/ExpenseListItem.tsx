@@ -8,7 +8,7 @@ import { Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { BIKE_SUBTYPES } from "@/lib/categories";
 
-export function ExpenseListItem({ expense }: { expense: Expense }) {
+export function ExpenseListItem({ expense, onDelete }: { expense: Expense; onDelete?: (id: string) => void }) {
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -29,6 +29,13 @@ export function ExpenseListItem({ expense }: { expense: Expense }) {
   const color = sub?.color || cat?.color || "#94a3b8";
   const date = new Date(expense.date).toLocaleDateString("en-US", { day: "numeric", month: "short" });
 
+  const handleDelete = async () => {
+    const { error } = await deleteExpense(expense.id);
+    if (!error && onDelete) {
+      onDelete(expense.id);
+    }
+  };
+
   return (
     <div className="group flex items-center gap-3 p-3 rounded-2xl hover:bg-secondary/60 transition-colors">
       <CategoryIcon name={icon} color={color} size={20} className="h-11 w-11" />
@@ -46,7 +53,7 @@ export function ExpenseListItem({ expense }: { expense: Expense }) {
       <Button
         variant="ghost"
         size="icon"
-        onClick={() => deleteExpense(expense.id)}
+        onClick={handleDelete}
         className="opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-destructive"
         aria-label="Delete"
       >
