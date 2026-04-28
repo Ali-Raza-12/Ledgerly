@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,7 +9,6 @@ import { AddExpense } from "./pages/AddExpense";
 import { History } from "./pages/History";
 import { BikeTracker } from "./pages/BikeTracker";
 import { Analytics } from "./pages/Analytics";
-import { Lending } from "./pages/Lending";
 import { Balance } from "./pages/Balance";
 import NotFound from "./pages/NotFound.tsx";
 const queryClient = new QueryClient();
@@ -29,7 +28,7 @@ const App = () => (
                   <Route path="/add" element={<AddExpense />} />
                   <Route path="/history" element={<History />} />
                   <Route path="/bike" element={<BikeTracker />} />
-                  <Route path="/lending" element={<Lending />} />
+                  <Route path="/lending" element={<Navigate to="/balance" replace />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
