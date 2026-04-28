@@ -99,6 +99,7 @@ export function useCashflow() {
         amount: l.amount,
         signed: isOut ? -l.amount : l.amount,
         date: l.date,
+        month: l.date.slice(0, 7),
         category: l.person,
         meta: l.entryType,
       });
