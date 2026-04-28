@@ -1,11 +1,10 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, Clock, Bike, BarChart3, Plus, HandCoins, LineChart } from "lucide-react";
+import { Home, Bike, BarChart3, Plus, LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { to: "/", label: "Home", icon: Home },
   { to: "/balance", label: "Balance", icon: LineChart },
-  { to: "/lending", label: "Lending", icon: HandCoins },
   { to: "/bike", label: "Bike", icon: Bike },
   { to: "/analytics", label: "Stats", icon: BarChart3 },
 ];
