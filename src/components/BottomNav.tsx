@@ -16,7 +16,7 @@ export function BottomNav() {
   return (
     <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 safe-bottom">
       <div className="mx-3 mb-3 glass-surface rounded-3xl shadow-card">
-        <div className="grid grid-cols-6 items-center px-2 py-2">
+        <div className="grid grid-cols-5 items-center px-2 py-2">
           {items.slice(0, 2).map((it) => (
             <NavItem key={it.to} {...it} active={pathname === it.to} />
           ))}
