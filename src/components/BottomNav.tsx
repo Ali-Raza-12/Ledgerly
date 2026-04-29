@@ -102,7 +102,7 @@ export function BottomNav() {
                   </button>
                 </DrawerClose>
               </DrawerHeader>
-              <div className="grid grid-cols-4 gap-3 px-4 pb-8">
+              <div className="grid grid-cols-3 gap-3 px-4 pb-8">
                 {moreItems.map((item) => {
                   const active = pathname === item.to;
                   const Icon = item.icon;
