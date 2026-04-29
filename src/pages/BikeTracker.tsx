@@ -5,7 +5,7 @@ import { CategoryIcon } from "@/components/CategoryIcon";
 import { formatCurrency, formatDate, monthKey, monthLabel, todayISO } from "@/lib/format";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Bike, Plus } from "lucide-react";
+import { Car, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getExpenses } from "@/services/expenseService";
 import { Expense } from "@/types/expense";
@@ -51,10 +51,10 @@ export function BikeTracker() {
   return (
     <div className="animate-fade-in">
       <PageHeader
-        title="Bike Tracker"
+        title="Vehicle Tracker"
         subtitle="Petrol, oil, repairs and more"
         action={
-          <Button asChild size="sm" className="rounded-xl bg-gradient-primary text-primary-foreground">
+          <Button asChild size="sm" className="rounded-xl bg-gradient-primary text-primary-foreground transition-all duration-300 hover:shadow-glow hover:scale-[1.03]">
             <Link to="/add"><Plus className="mr-1 h-4 w-4" /> Add</Link>
           </Button>
         }
@@ -77,10 +77,10 @@ export function BikeTracker() {
         <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
         <div className="relative flex items-center gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow">
-            <Bike className="h-7 w-7 text-primary-foreground" />
+            <Car className="h-7 w-7 text-primary-foreground" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Monthly bike spend</p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Monthly vehicle spend</p>
             <p className="mt-1 fin-number text-3xl font-semibold">{formatCurrency(data.total)}</p>
           </div>
         </div>
