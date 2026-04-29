@@ -160,7 +160,7 @@ export function AddExpense() {
 
           {isBike && (
             <div className="animate-scale-in space-y-3">
-              <Label>Bike sub-type</Label>
+              <Label>Vehicle sub-type</Label>
               <div className="grid grid-cols-4 gap-2">
                 {BIKE_SUBTYPES.map((subType) => {
                   const active = subType.id === bikeSub;

@@ -7,7 +7,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: "shopping", name: "Shopping", icon: "ShoppingBag", color: "#ec4899", type: "normal" },
   { id: "entertainment", name: "Entertainment", icon: "Film", color: "#06b6d4", type: "normal" },
   { id: "health", name: "Health", icon: "HeartPulse", color: "#ef4444", type: "normal" },
-  { id: "bike", name: "Bike", icon: "Bike", color: "#10b981", type: "bike" },
+  { id: "bike", name: "Vehicle", icon: "Car", color: "#10b981", type: "bike" },
 ];
 
 export const BIKE_SUBTYPES: { id: BikeSubType; name: string; icon: string; color: string }[] = [
