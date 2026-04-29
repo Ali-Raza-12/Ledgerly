@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { Home, Clock, Car, BarChart3, Plus, Wallet, HandCoins, LineChart, User, LogOut } from "lucide-react";
+import { Home, Clock, Car, BarChart3, Plus, Wallet, HandCoins, LineChart, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "./UserAvatar";
@@ -13,7 +13,6 @@ const items = [
   { to: "/lending", label: "Lending", icon: HandCoins },
   { to: "/bike", label: "Vehicle", icon: Car },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/profile", label: "Profile", icon: User },
 ];
 
 export function SideNav() {

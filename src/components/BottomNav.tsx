@@ -8,7 +8,6 @@ import {
   Plus,
   HandCoins,
   LineChart,
-  User,
   MoreHorizontal,
   X,
 } from "lucide-react";
@@ -41,7 +40,6 @@ const moreItems: NavItemDef[] = [
   { to: "/lending", label: "Lending", icon: HandCoins },
   { to: "/bike", label: "Vehicle", icon: Car },
   { to: "/analytics", label: "Stats", icon: BarChart3 },
-  { to: "/profile", label: "Profile", icon: User },
 ];
 
 export function BottomNav() {
