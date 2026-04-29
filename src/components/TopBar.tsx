@@ -112,42 +112,48 @@ export function TopBar() {
       </div>
 
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogContent className="glass-surface border-border max-w-md">
+        <DialogContent className="glass-surface border-border max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Choose your avatar</DialogTitle>
-            <DialogDescription>Pick a premium gradient that represents you.</DialogDescription>
+            <DialogDescription>Pick a premium character — ninja, anime, fantasy and more.</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-4 gap-3 pt-2">
-            {PREMIUM_AVATARS.map((a) => {
-              const active = a.id === avatarId;
-              return (
-                <button
-                  key={a.id}
-                  onClick={() => handlePickAvatar(a.id)}
-                  className={cn(
-                    "group relative flex flex-col items-center gap-2 rounded-2xl border p-3 transition-all duration-300",
-                    "hover:-translate-y-0.5 hover:border-primary/40",
-                    active ? "border-primary/60 bg-primary/10 shadow-glow" : "border-border bg-secondary/40",
-                  )}
-                  type="button"
-                >
-                  <div
-                    className="relative h-12 w-12 rounded-full shadow-card transition-transform duration-300 group-hover:scale-110"
-                    style={{ background: a.gradient }}
-                  >
-                    {active && (
-                      <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-glow">
-                        <Check className="h-3 w-3" strokeWidth={3} />
+          {(["Characters", "Animals", "Fantasy", "Sci-Fi"] as const).map((cat) => (
+            <div key={cat} className="pt-3">
+              <p className="px-1 pb-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{cat}</p>
+              <div className="grid grid-cols-4 gap-3">
+                {PREMIUM_AVATARS.filter((a) => a.category === cat).map((a) => {
+                  const active = a.id === avatarId;
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => handlePickAvatar(a.id)}
+                      className={cn(
+                        "group relative flex flex-col items-center gap-2 rounded-2xl border p-2.5 transition-all duration-300",
+                        "hover:-translate-y-0.5 hover:border-primary/40",
+                        active ? "border-primary/60 bg-primary/10 shadow-glow" : "border-border bg-secondary/40",
+                      )}
+                      type="button"
+                    >
+                      <div
+                        className="relative h-14 w-14 overflow-hidden rounded-full shadow-card transition-transform duration-300 group-hover:scale-110"
+                        style={{ background: a.gradient }}
+                      >
+                        <AvatarArt kind={a.id} />
+                        {active && (
+                          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-glow">
+                            <Check className="h-3 w-3" strokeWidth={3} />
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground">
+                        {a.label}
                       </span>
-                    )}
-                  </div>
-                  <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground">
-                    {a.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </DialogContent>
       </Dialog>
     </header>
