@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   Clock,
-  Bike,
+  Car,
   BarChart3,
   Plus,
   HandCoins,
@@ -38,8 +38,8 @@ const primaryRight: NavItemDef[] = [
 ];
 
 const moreItems: NavItemDef[] = [
-  { to: "/bike", label: "Bike", icon: Bike },
   { to: "/lending", label: "Lending", icon: HandCoins },
+  { to: "/bike", label: "Vehicle", icon: Car },
   { to: "/analytics", label: "Stats", icon: BarChart3 },
   { to: "/profile", label: "Profile", icon: User },
 ];
