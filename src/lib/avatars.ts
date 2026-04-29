@@ -1,21 +1,42 @@
-// Predefined premium gradient avatars. Each entry is referenced by id and
-// rendered as a CSS gradient so we don't depend on remote image hosting.
+// Premium character avatars rendered as inline SVG. Each persona has a
+// unique gradient background and an illustrated character (ninja, anime,
+// robot, etc.). No remote assets — fully themeable and crisp at any size.
+
+export type AvatarKind =
+  | "ninja"
+  | "samurai"
+  | "anime-girl"
+  | "anime-boy"
+  | "fox"
+  | "panda"
+  | "cat"
+  | "robot"
+  | "astronaut"
+  | "wizard"
+  | "knight"
+  | "alien";
+
 export interface PremiumAvatar {
-  id: string;
+  id: AvatarKind;
   label: string;
   gradient: string;
   ring: string; // hsl color used for ring/glow
+  category: "Characters" | "Animals" | "Fantasy" | "Sci-Fi";
 }
 
 export const PREMIUM_AVATARS: PremiumAvatar[] = [
-  { id: "aurora",  label: "Aurora",  gradient: "linear-gradient(135deg, #22d3a8 0%, #4ade80 50%, #a3e635 100%)", ring: "142 90% 55%" },
-  { id: "nebula",  label: "Nebula",  gradient: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)", ring: "270 75% 65%" },
-  { id: "ember",   label: "Ember",   gradient: "linear-gradient(135deg, #f59e0b 0%, #f97316 50%, #ef4444 100%)", ring: "20 95% 60%" },
-  { id: "ocean",   label: "Ocean",   gradient: "linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #14b8a6 100%)", ring: "190 90% 55%" },
-  { id: "rose",    label: "Rose",    gradient: "linear-gradient(135deg, #f43f5e 0%, #ec4899 50%, #a855f7 100%)", ring: "340 85% 60%" },
-  { id: "obsidian",label: "Obsidian",gradient: "linear-gradient(135deg, #1e293b 0%, #334155 50%, #64748b 100%)", ring: "215 20% 55%" },
-  { id: "gold",    label: "Gold",    gradient: "linear-gradient(135deg, #fde047 0%, #f59e0b 50%, #b45309 100%)", ring: "40 95% 55%" },
-  { id: "mint",    label: "Mint",    gradient: "linear-gradient(135deg, #5eead4 0%, #34d399 50%, #10b981 100%)", ring: "160 75% 55%" },
+  { id: "ninja",       label: "Ninja",      category: "Characters", gradient: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #ef4444 100%)", ring: "0 85% 60%" },
+  { id: "samurai",     label: "Samurai",    category: "Characters", gradient: "linear-gradient(135deg, #7f1d1d 0%, #b91c1c 50%, #fbbf24 100%)", ring: "20 90% 55%" },
+  { id: "anime-girl",  label: "Sakura",     category: "Characters", gradient: "linear-gradient(135deg, #fce7f3 0%, #f9a8d4 50%, #c084fc 100%)", ring: "320 85% 65%" },
+  { id: "anime-boy",   label: "Hiro",       category: "Characters", gradient: "linear-gradient(135deg, #dbeafe 0%, #60a5fa 50%, #4f46e5 100%)", ring: "220 85% 60%" },
+  { id: "fox",         label: "Kitsune",    category: "Animals",    gradient: "linear-gradient(135deg, #fed7aa 0%, #fb923c 50%, #c2410c 100%)", ring: "25 90% 55%" },
+  { id: "panda",       label: "Panda",      category: "Animals",    gradient: "linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 50%, #475569 100%)", ring: "215 20% 50%" },
+  { id: "cat",         label: "Neko",       category: "Animals",    gradient: "linear-gradient(135deg, #fef3c7 0%, #fbbf24 50%, #d97706 100%)", ring: "40 95% 55%" },
+  { id: "robot",       label: "Mecha",      category: "Sci-Fi",     gradient: "linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #14b8a6 100%)", ring: "190 90% 55%" },
+  { id: "astronaut",   label: "Cosmo",      category: "Sci-Fi",     gradient: "linear-gradient(135deg, #1e1b4b 0%, #4f46e5 50%, #a855f7 100%)", ring: "260 80% 65%" },
+  { id: "alien",       label: "Zorb",       category: "Sci-Fi",     gradient: "linear-gradient(135deg, #064e3b 0%, #10b981 50%, #84cc16 100%)", ring: "150 80% 50%" },
+  { id: "wizard",      label: "Mage",       category: "Fantasy",    gradient: "linear-gradient(135deg, #1e1b4b 0%, #6d28d9 50%, #ec4899 100%)", ring: "280 80% 60%" },
+  { id: "knight",      label: "Knight",     category: "Fantasy",    gradient: "linear-gradient(135deg, #334155 0%, #64748b 50%, #cbd5e1 100%)", ring: "215 25% 55%" },
 ];
 
 export const getAvatarById = (id?: string | null) =>
