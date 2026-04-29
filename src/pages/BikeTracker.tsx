@@ -107,7 +107,7 @@ export function BikeTracker() {
         <h3 className="mb-3 px-1 text-xs uppercase tracking-widest text-muted-foreground">Timeline</h3>
         {data.timeline.length === 0 ? (
           <div className="glass-card rounded-3xl p-10 text-center text-muted-foreground">
-            No bike expenses for this month.
+            No vehicle expenses for this month.
           </div>
         ) : (
           <div className="relative pl-6">
@@ -122,7 +122,7 @@ export function BikeTracker() {
                       style={{ background: subType?.color || "hsl(var(--primary))" }}
                     />
                     <div className="glass-card flex items-center gap-3 rounded-2xl p-4">
-                      <CategoryIcon name={subType?.icon || "Bike"} color={subType?.color} className="h-10 w-10" size={18} />
+                      <CategoryIcon name={subType?.icon || "Car"} color={subType?.color} className="h-10 w-10" size={18} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{expense.title}</p>
                         <p className="text-xs text-muted-foreground">
