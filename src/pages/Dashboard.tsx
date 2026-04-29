@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatCurrency, monthKey, monthLabel, previousMonth, todayISO } from "@/lib/format";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { ArrowDownRight, ArrowUpRight, TrendingUp, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, TrendingUp, Wallet } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { ExpenseListItem } from "@/components/ExpenseListItem";
 import { Link } from "react-router-dom";
@@ -162,8 +162,16 @@ export function Dashboard() {
           <h3 className="font-semibold flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-primary" /> Recent activity
           </h3>
-          <Button asChild variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground">
-            <Link to="/history">View all</Link>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="group h-8 gap-1 rounded-full border border-border bg-secondary/40 px-3 text-xs font-medium text-muted-foreground transition-all duration-300 hover:border-primary/40 hover:bg-primary/10 hover:text-primary hover:shadow-glow"
+          >
+            <Link to="/history">
+              View all
+              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
+            </Link>
           </Button>
         </div>
         {recent.length === 0 ? (
