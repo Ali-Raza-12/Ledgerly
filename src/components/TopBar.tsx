@@ -13,6 +13,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UserAvatar } from "./UserAvatar";
 import { PREMIUM_AVATARS } from "@/lib/avatars";
+import { AvatarArt } from "./AvatarArt";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
