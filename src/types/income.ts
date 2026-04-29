@@ -10,3 +10,12 @@ export interface Income {
   note?: string;
   createdAt: string;
 }
+
+export interface IncomeInput {
+  title: string;
+  amount: number;
+  source: IncomeSource;
+  date: string;
+  month?: string;
+  note?: string;
+}

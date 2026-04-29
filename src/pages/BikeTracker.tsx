@@ -1,8 +1,8 @@
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { BIKE_SUBTYPES } from "@/lib/categories";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { formatCurrency, monthKey, monthLabel, todayISO } from "@/lib/format";
+import { formatCurrency, formatDate, monthKey, monthLabel, todayISO } from "@/lib/format";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Bike, Plus } from "lucide-react";
@@ -28,18 +28,23 @@ export function BikeTracker() {
   }, []);
 
   const months = useMemo(
-    () => [...new Set(expenses.map((e) => monthKey(e.date)).filter(Boolean))].sort().reverse(),
-    [expenses]
+    () => [...new Set(expenses.map((expense) => monthKey(expense.date)).filter(Boolean))].sort().reverse(),
+    [expenses],
   );
   const [month, setMonth] = useState<string>(monthKey(todayISO()));
 
   const data = useMemo(() => {
-    const all = expenses.filter((e) => e.type === "bike");
-    const inMonth = all.filter((e) => monthKey(e.date) === month);
-    const total = inMonth.reduce((s, e) => s + e.amount, 0);
+    const bikeExpenses = expenses.filter((expense) => expense.type === "bike");
+    const monthExpenses = bikeExpenses.filter((expense) => monthKey(expense.date) === month);
+    const total = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     const bySub = new Map<string, number>();
-    for (const e of inMonth) bySub.set(e.bikeSubType || "other", (bySub.get(e.bikeSubType || "other") || 0) + e.amount);
-    const timeline = [...inMonth].sort((a, b) => b.date.localeCompare(a.date));
+
+    for (const expense of monthExpenses) {
+      const key = expense.bikeSubType || "other";
+      bySub.set(key, (bySub.get(key) || 0) + expense.amount);
+    }
+
+    const timeline = [...monthExpenses].sort((a, b) => b.date.localeCompare(a.date));
     return { total, bySub, timeline };
   }, [expenses, month]);
 
@@ -50,47 +55,47 @@ export function BikeTracker() {
         subtitle="Petrol, oil, repairs and more"
         action={
           <Button asChild size="sm" className="rounded-xl bg-gradient-primary text-primary-foreground">
-            <Link to="/add"><Plus className="h-4 w-4 mr-1" /> Add</Link>
+            <Link to="/add"><Plus className="mr-1 h-4 w-4" /> Add</Link>
           </Button>
         }
       />
 
       <div className="mb-5">
         <Select value={month} onValueChange={setMonth}>
-          <SelectTrigger className="h-11 rounded-xl bg-secondary border-border w-full sm:w-60">
+          <SelectTrigger className="h-11 w-full rounded-xl border-border bg-secondary sm:w-60">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {(months.length ? months : [month]).map((m) => (
-              <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>
+            {(months.length ? months : [month]).map((item) => (
+              <SelectItem key={item} value={item}>{monthLabel(item)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      <section className="relative overflow-hidden glass-card rounded-3xl p-6 mb-5">
-        <div className="absolute -top-16 -right-16 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
+      <section className="relative mb-5 overflow-hidden rounded-3xl glass-card p-6">
+        <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
         <div className="relative flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-glow">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow">
             <Bike className="h-7 w-7 text-primary-foreground" />
           </div>
           <div>
             <p className="text-xs uppercase tracking-widest text-muted-foreground">Monthly bike spend</p>
-            <p className="fin-number text-3xl font-semibold mt-1">{formatCurrency(data.total)}</p>
+            <p className="mt-1 fin-number text-3xl font-semibold">{formatCurrency(data.total)}</p>
           </div>
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 mb-6">
-        {BIKE_SUBTYPES.map((s) => {
-          const amount = data.bySub.get(s.id) || 0;
+      <section className="mb-6 grid grid-cols-2 gap-3">
+        {BIKE_SUBTYPES.map((subType) => {
+          const amount = data.bySub.get(subType.id) || 0;
           return (
-            <div key={s.id} className="glass-card rounded-2xl p-4">
+            <div key={subType.id} className="glass-card rounded-2xl p-4">
               <div className="flex items-center gap-3">
-                <CategoryIcon name={s.icon} color={s.color} className="h-10 w-10" size={18} />
+                <CategoryIcon name={subType.icon} color={subType.color} className="h-10 w-10" size={18} />
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">{s.name}</p>
-                  <p className="fin-number font-semibold truncate">{formatCurrency(amount)}</p>
+                  <p className="text-xs text-muted-foreground">{subType.name}</p>
+                  <p className="fin-number truncate font-semibold">{formatCurrency(amount)}</p>
                 </div>
               </div>
             </div>
@@ -99,7 +104,7 @@ export function BikeTracker() {
       </section>
 
       <section>
-        <h3 className="text-xs uppercase tracking-widest text-muted-foreground mb-3 px-1">Timeline</h3>
+        <h3 className="mb-3 px-1 text-xs uppercase tracking-widest text-muted-foreground">Timeline</h3>
         {data.timeline.length === 0 ? (
           <div className="glass-card rounded-3xl p-10 text-center text-muted-foreground">
             No bike expenses for this month.
@@ -108,23 +113,23 @@ export function BikeTracker() {
           <div className="relative pl-6">
             <div className="absolute left-2 top-2 bottom-2 w-px bg-border" />
             <div className="space-y-4">
-              {data.timeline.map((e) => {
-                const sub = BIKE_SUBTYPES.find((s) => s.id === e.bikeSubType);
+              {data.timeline.map((expense) => {
+                const subType = BIKE_SUBTYPES.find((item) => item.id === expense.bikeSubType);
                 return (
-                  <div key={e.id} className="relative">
+                  <div key={expense.id} className="relative">
                     <div
                       className="absolute -left-[18px] top-3 h-3 w-3 rounded-full ring-4 ring-background"
-                      style={{ background: sub?.color || "hsl(var(--primary))" }}
+                      style={{ background: subType?.color || "hsl(var(--primary))" }}
                     />
-                    <div className="glass-card rounded-2xl p-4 flex items-center gap-3">
-                      <CategoryIcon name={sub?.icon || "Bike"} color={sub?.color} className="h-10 w-10" size={18} />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{e.title}</p>
+                    <div className="glass-card flex items-center gap-3 rounded-2xl p-4">
+                      <CategoryIcon name={subType?.icon || "Bike"} color={subType?.color} className="h-10 w-10" size={18} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{expense.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {sub?.name} • {new Date(e.date).toLocaleDateString("en-US", { day: "numeric", month: "short" })}
+                          {subType?.name} - {formatDate(expense.date, { day: "numeric", month: "short" })}
                         </p>
                       </div>
-                      <p className="fin-number font-semibold">{formatCurrency(e.amount)}</p>
+                      <p className="fin-number font-semibold">{formatCurrency(expense.amount)}</p>
                     </div>
                   </div>
                 );

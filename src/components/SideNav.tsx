@@ -18,12 +18,25 @@ const items = [
 export function SideNav() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const initials = (user?.name ?? "U").split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+  const displayName =
+    (typeof user?.user_metadata?.name === "string" ? user.user_metadata.name : undefined) ||
+    user?.email?.split("@")[0] ||
+    "User";
+  const initials = displayName.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate("/signin", { replace: true });
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-border bg-sidebar/60 backdrop-blur-xl sticky top-0 h-screen self-start">
-      <div className="flex items-center gap-3 px-6 h-20 border-b border-border">
-        <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 self-start border-r border-border bg-sidebar/60 backdrop-blur-xl lg:flex lg:flex-col">
+      <div className="flex h-20 items-center gap-3 border-b border-border px-6">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-primary shadow-glow">
           <Wallet className="h-5 w-5 text-primary-foreground" />
         </div>
         <div>
@@ -31,48 +44,55 @@ export function SideNav() {
           <div className="text-xs text-muted-foreground">Expense tracker</div>
         </div>
       </div>
-      <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
-        {items.map((it) => (
+
+      <nav className="app-scrollbar flex-1 space-y-1 overflow-y-auto px-3 py-6">
+        {items.map((item) => (
           <NavLink
-            key={it.to}
-            to={it.to}
-            end={it.to === "/"}
+            key={item.to}
+            to={item.to}
+            end={item.to === "/"}
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-primary/10 text-primary border border-primary/20"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  ? "border border-primary/20 bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground",
               )
             }
           >
-            <it.icon className="h-4 w-4" />
-            {it.label}
+            <item.icon className="h-4 w-4" />
+            {item.label}
           </NavLink>
         ))}
       </nav>
+
       {user && (
-        <div className="px-3 pb-3 pt-3 border-t border-border">
-          <button
-            onClick={() => navigate("/profile")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary transition-colors group"
-          >
-            <Avatar className="h-9 w-9 ring-1 ring-primary/30">
-              <AvatarFallback className="bg-gradient-primary text-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1 text-left">
-              <div className="text-sm font-medium truncate">{user.name}</div>
-              <div className="text-xs text-muted-foreground truncate">{user.email}</div>
-            </div>
-            <LogOut
-              className="h-4 w-4 text-muted-foreground hover:text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                signOut();
-                navigate("/signin", { replace: true });
-              }}
-            />
-          </button>
+        <div className="border-t border-border px-3 pb-3 pt-3">
+          <div className="rounded-xl border border-border bg-secondary/30 p-2">
+            <button
+              type="button"
+              onClick={() => navigate("/profile")}
+              className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-secondary"
+            >
+              <Avatar className="h-9 w-9 ring-1 ring-primary/30">
+                <AvatarFallback className="bg-gradient-primary text-xs font-semibold text-primary-foreground">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">{displayName}</div>
+                <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="mt-2 flex w-full items-center gap-2 rounded-xl px-2 py-2 text-sm text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
+          </div>
         </div>
       )}
     </aside>

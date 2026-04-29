@@ -1,6 +1,6 @@
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { AddLedgerDialog } from "@/components/AddLedgerDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,18 +17,49 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { PersonBalance } from "@/types/ledger";
+import type { LedgerEntry, PersonBalance } from "@/types/ledger";
 import { getLedger, deleteLedgerEntry } from "@/services/ledgerService";
 import { Loader } from "@/components/Loader";
 import { toast } from "sonner";
 
+const buildBalances = (entries: LedgerEntry[]) => {
+  const map = new Map<string, PersonBalance>();
+
+  for (const entry of entries) {
+    const key = entry.person.trim().toLowerCase();
+    const existing = map.get(key) || {
+      person: entry.person,
+      net: 0,
+      totalLent: 0,
+      totalBorrowed: 0,
+      entries: [],
+    };
+
+    let delta = 0;
+
+    if (entry.entryType === "loan") {
+      delta = entry.direction === "lent" ? entry.amount : -entry.amount;
+
+      if (entry.direction === "lent") existing.totalLent += entry.amount;
+      else existing.totalBorrowed += entry.amount;
+    } else {
+      delta = entry.direction === "lent" ? -entry.amount : entry.amount;
+    }
+
+    existing.net += delta;
+    existing.entries.push(entry);
+    map.set(key, existing);
+  }
+
+  return [...map.values()].sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+};
+
 export function Lending() {
-  const [balances, setBalances] = useState<PersonBalance[]>([]);
+  const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [openPerson, setOpenPerson] = useState<string | null>(null);
 
-  // Fetch ledger data
   useEffect(() => {
     const loadLedger = async () => {
       const { data, error } = await getLedger();
@@ -40,80 +71,41 @@ export function Lending() {
         return;
       }
 
-      const entries = data || [];
-
-      // convert raw ledger → PersonBalance
-      const map = new Map<string, PersonBalance>();
-
-      for (const e of entries) {
-        const key = e.person.trim().toLowerCase();
-
-        const existing = map.get(key) || {
-          person: e.person,
-          net: 0,
-          totalLent: 0,
-          totalBorrowed: 0,
-          entries: [],
-        };
-
-        let delta = 0;
-
-        if (e.entryType === "loan") {
-          delta = e.direction === "lent" ? e.amount : -e.amount;
-
-          if (e.direction === "lent") existing.totalLent += e.amount;
-          else existing.totalBorrowed += e.amount;
-        } else {
-          delta = e.direction === "lent" ? -e.amount : e.amount;
-        }
-
-        existing.net += delta;
-        existing.entries.push(e);
-
-        map.set(key, existing);
-      }
-
-      setBalances([...map.values()].sort((a, b) => Math.abs(b.net) - Math.abs(a.net)));
+      setEntries(data || []);
       setLoading(false);
     };
 
     loadLedger();
   }, []);
 
+  const balances = useMemo(() => buildBalances(entries), [entries]);
+
   const totals = useMemo(() => {
     let youAreOwed = 0;
     let youOwe = 0;
-    for (const b of balances) {
-      if (b.net > 0) {
-        youAreOwed += b.net;
-      } else {
-        youOwe += Math.abs(b.net);
-      }
+    for (const balance of balances) {
+      if (balance.net > 0) youAreOwed += balance.net;
+      else youOwe += Math.abs(balance.net);
     }
     return { youAreOwed, youOwe, net: youAreOwed - youOwe };
   }, [balances]);
 
   const filtered = useMemo(() => {
     if (!q.trim()) return balances;
-    const s = q.toLowerCase();
-    return balances.filter((b) => b.person.toLowerCase().includes(s));
+    const search = q.toLowerCase();
+    return balances.filter((balance) => balance.person.toLowerCase().includes(search));
   }, [balances, q]);
 
-  // Handle delete with UI update
   const handleDeleteEntry = async (id: string) => {
+    if (!window.confirm("Delete this ledger entry?")) {
+      return;
+    }
+
     try {
       const { error } = await deleteLedgerEntry(id);
       if (error) throw error;
-      
-      // Update local state
-      setBalances((prev) =>
-        prev
-          .map((p) => ({
-            ...p,
-            entries: p.entries.filter((e) => e.id !== id),
-          }))
-          .filter((p) => p.entries.length > 0)
-      );
+
+      setEntries((prev) => prev.filter((entry) => entry.id !== id));
       toast.success("Entry deleted");
     } catch (err) {
       console.error("Error deleting entry:", err);
@@ -132,32 +124,32 @@ export function Lending() {
         subtitle="Money you gave or received"
         action={
           <AddLedgerDialog
+            onSuccess={(entry) => setEntries((prev) => [entry, ...prev])}
             trigger={
               <Button size="sm" className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow">
-                <Plus className="h-4 w-4 mr-1" /> Record
+                <Plus className="mr-1 h-4 w-4" /> Record
               </Button>
             }
           />
         }
       />
 
-      {/* Net summary hero */}
-      <section className="relative overflow-hidden glass-card rounded-3xl p-6 mb-5">
-        <div className="absolute -top-16 -right-16 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
+      <section className="relative mb-5 overflow-hidden rounded-3xl glass-card p-6">
+        <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
         <div className="relative">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-widest text-muted-foreground">Net balance</p>
               <p
                 className={cn(
-                  "fin-number text-4xl font-semibold mt-2",
-                  totals.net > 0 ? "text-primary" : totals.net < 0 ? "text-warning" : ""
+                  "mt-2 fin-number text-4xl font-semibold",
+                  totals.net > 0 ? "text-primary" : totals.net < 0 ? "text-warning" : "",
                 )}
               >
                 {totals.net >= 0 ? "+" : "-"}
                 {formatCurrency(Math.abs(totals.net))}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {totals.net > 0
                   ? "You're owed this much overall"
                   : totals.net < 0
@@ -165,70 +157,71 @@ export function Lending() {
                   : "All settled"}
               </p>
             </div>
-            <div className="h-12 w-12 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-glow">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow">
               <Wallet className="h-6 w-6 text-primary-foreground" />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="grid grid-cols-2 gap-3 mb-5">
+      <section className="mb-5 grid grid-cols-2 gap-3">
         <div className="glass-card rounded-2xl p-4">
           <div className="flex items-center gap-2">
-            <span className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15">
               <ArrowUpRight className="h-4 w-4 text-primary" />
             </span>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">You're owed</p>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">You're owed</p>
           </div>
-          <p className="fin-number text-xl font-semibold mt-2">{formatCurrency(totals.youAreOwed)}</p>
+          <p className="mt-2 fin-number text-xl font-semibold">{formatCurrency(totals.youAreOwed)}</p>
         </div>
         <div className="glass-card rounded-2xl p-4">
           <div className="flex items-center gap-2">
-            <span className="h-8 w-8 rounded-lg bg-warning/15 flex items-center justify-center">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/15">
               <ArrowDownLeft className="h-4 w-4 text-warning" />
             </span>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">You owe</p>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">You owe</p>
           </div>
-          <p className="fin-number text-xl font-semibold mt-2">{formatCurrency(totals.youOwe)}</p>
+          <p className="mt-2 fin-number text-xl font-semibold">{formatCurrency(totals.youOwe)}</p>
         </div>
       </section>
 
-      {/* Search */}
       <div className="relative mb-4">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search a person…"
-          className="pl-10 h-12 rounded-2xl bg-secondary border-border"
+          placeholder="Search a person..."
+          className="h-12 rounded-2xl border-border bg-secondary pl-10"
         />
       </div>
 
-      {/* People list */}
       {filtered.length === 0 ? (
         <div className="glass-card rounded-3xl p-10 text-center">
-          <HandCoins className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
-          <p className="text-muted-foreground mb-4">No lending records yet.</p>
+          <HandCoins className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+          <p className="mb-4 text-muted-foreground">
+            {q.trim() ? "No people match your search." : "No lending records yet."}
+          </p>
           <AddLedgerDialog
+            onSuccess={(entry) => setEntries((prev) => [entry, ...prev])}
             trigger={
               <Button className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow">
-                <Plus className="h-4 w-4 mr-1" /> Add first entry
+                <Plus className="mr-1 h-4 w-4" /> Add first entry
               </Button>
             }
           />
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((p) => (
+          {filtered.map((person) => (
             <PersonCard
-              key={p.person.toLowerCase()}
-              person={p}
-              open={openPerson === p.person.toLowerCase()}
+              key={person.person.toLowerCase()}
+              person={person}
+              open={openPerson === person.person.toLowerCase()}
               onToggle={() =>
-                setOpenPerson(openPerson === p.person.toLowerCase() ? null : p.person.toLowerCase())
+                setOpenPerson(openPerson === person.person.toLowerCase() ? null : person.person.toLowerCase())
               }
               onDelete={handleDeleteEntry}
+              onEntryAdded={(entry) => setEntries((prev) => [entry, ...prev])}
             />
           ))}
         </div>
@@ -242,37 +235,39 @@ function PersonCard({
   open,
   onToggle,
   onDelete,
+  onEntryAdded,
 }: {
   person: PersonBalance;
   open: boolean;
   onToggle: () => void;
   onDelete: (id: string) => void;
+  onEntryAdded: (entry: LedgerEntry) => void;
 }) {
   const settled = person.net === 0;
   const owesYou = person.net > 0;
   const initial = person.person.charAt(0).toUpperCase();
 
   return (
-    <div className="glass-card rounded-2xl overflow-hidden">
+    <div className="glass-card overflow-hidden rounded-2xl">
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center gap-3 p-4 text-left hover:bg-secondary/30 transition-colors"
+        className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-secondary/30"
       >
         <div
           className={cn(
-            "h-11 w-11 rounded-xl flex items-center justify-center font-semibold text-base",
+            "flex h-11 w-11 items-center justify-center rounded-xl text-base font-semibold",
             owesYou
               ? "bg-primary/15 text-primary"
               : settled
               ? "bg-secondary text-muted-foreground"
-              : "bg-warning/15 text-warning"
+              : "bg-warning/15 text-warning",
           )}
         >
           {initial}
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-medium truncate">{person.person}</p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium">{person.person}</p>
           <p className="text-xs text-muted-foreground">
             {settled ? (
               <span className="inline-flex items-center gap-1 text-primary">
@@ -289,28 +284,29 @@ function PersonCard({
           <p
             className={cn(
               "fin-number font-semibold",
-              owesYou ? "text-primary" : settled ? "text-muted-foreground" : "text-warning"
+              owesYou ? "text-primary" : settled ? "text-muted-foreground" : "text-warning",
             )}
           >
             {settled ? formatCurrency(0) : `${owesYou ? "+" : "-"}${formatCurrency(Math.abs(person.net))}`}
           </p>
           {open ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground inline-block mt-1" />
+            <ChevronDown className="mt-1 inline-block h-4 w-4 text-muted-foreground" />
           ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground inline-block mt-1" />
+            <ChevronRight className="mt-1 inline-block h-4 w-4 text-muted-foreground" />
           )}
         </div>
       </button>
 
       {open && (
-        <div className="border-t border-border p-3 space-y-3 animate-fade-in">
+        <div className="animate-fade-in space-y-3 border-t border-border p-3">
           <div className="grid grid-cols-2 gap-2">
             <AddLedgerDialog
               defaultPerson={person.person}
               defaultEntryType="loan"
+              onSuccess={onEntryAdded}
               trigger={
-                <Button variant="outline" size="sm" className="rounded-xl h-9 border-border">
-                  <Plus className="h-3.5 w-3.5 mr-1" /> New loan
+                <Button variant="outline" size="sm" className="h-9 rounded-xl border-border">
+                  <Plus className="mr-1 h-3.5 w-3.5" /> New loan
                 </Button>
               }
             />
@@ -318,58 +314,66 @@ function PersonCard({
               defaultPerson={person.person}
               defaultEntryType="settlement"
               defaultDirection={person.net > 0 ? "lent" : "borrowed"}
+              onSuccess={onEntryAdded}
               trigger={
-                <Button variant="outline" size="sm" className="rounded-xl h-9 border-border">
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Settle
+                <Button variant="outline" size="sm" className="h-9 rounded-xl border-border">
+                  <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Settle
                 </Button>
               }
             />
           </div>
 
           <div className="space-y-1">
-            {person.entries.map((e) => {
-              const isLoan = e.entryType === "loan";
-              const isYouGave = (isLoan && e.direction === "lent") || (!isLoan && e.direction === "borrowed");
+            {person.entries.map((entry) => {
+              const isLoan = entry.entryType === "loan";
+              const isYouGave =
+                (isLoan && entry.direction === "lent") ||
+                (!isLoan && entry.direction === "borrowed");
               const tone = isLoan
-                ? e.direction === "lent"
+                ? entry.direction === "lent"
                   ? "text-primary"
                   : "text-warning"
                 : "text-muted-foreground";
               const label = isLoan
-                ? e.direction === "lent"
+                ? entry.direction === "lent"
                   ? "You gave"
                   : "You received"
-                : e.direction === "lent"
+                : entry.direction === "lent"
                 ? "They paid back"
                 : "You paid back";
+
               return (
                 <div
-                  key={e.id}
-                  className="group flex items-center gap-3 p-2.5 rounded-xl hover:bg-secondary/40 transition-colors"
+                  key={entry.id}
+                  className="group flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-secondary/40"
                 >
                   <div
                     className={cn(
-                      "h-8 w-8 rounded-lg flex items-center justify-center shrink-0",
-                      isYouGave ? "bg-primary/15 text-primary" : "bg-warning/15 text-warning"
+                      "flex h-8 w-8 items-center justify-center rounded-lg shrink-0",
+                      isYouGave ? "bg-primary/15 text-primary" : "bg-warning/15 text-warning",
                     )}
                   >
                     {isYouGave ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
                       {label}
-                      {!isLoan && <span className="ml-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">settlement</span>}
+                      {!isLoan && (
+                        <span className="ml-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                          settlement
+                        </span>
+                      )}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {new Date(e.date).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
-                      {e.note ? ` • ${e.note}` : ""}
+                    <p className="truncate text-xs text-muted-foreground">
+                      {formatDate(entry.date, { day: "numeric", month: "short", year: "numeric" })}
+                      {entry.note ? ` - ${entry.note}` : ""}
                     </p>
                   </div>
-                  <p className={cn("fin-number text-sm font-semibold", tone)}>{formatCurrency(e.amount)}</p>
+                  <p className={cn("fin-number text-sm font-semibold", tone)}>{formatCurrency(entry.amount)}</p>
                   <button
                     type="button"
-                    onClick={() => onDelete(e.id)}
-                    className="opacity-0 group-hover:opacity-100 h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive transition-colors"
+                    onClick={() => onDelete(entry.id)}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-colors group-hover:opacity-100 hover:text-destructive"
                     aria-label="Delete"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

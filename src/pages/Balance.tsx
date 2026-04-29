@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { formatCurrency, monthKey, monthLabel, todayISO } from "@/lib/format";
+import { formatCurrency, formatDate, localDateFrom, monthKey, monthLabel, todayISO } from "@/lib/format";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { AddIncomeDialog } from "@/components/AddIncomeDialog";
@@ -29,6 +29,7 @@ import type { Expense } from "@/types/expense";
 import type { Income } from "@/types/income";
 import type { LedgerEntry } from "@/types/ledger";
 import { Loader } from "@/components/Loader";
+import { toast } from "sonner";
 
 interface UnifiedTxn {
   id: string;
@@ -46,15 +47,15 @@ interface UnifiedTxn {
 
 
 const dayLabel = (iso: string) => {
-  const d = new Date(iso);
-  const today = new Date();
-  const yest = new Date();
+  const d = localDateFrom(iso);
+  const today = localDateFrom(todayISO());
+  const yest = localDateFrom(todayISO());
   yest.setDate(today.getDate() - 1);
   const isSame = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   if (isSame(d, today)) return "Today";
   if (isSame(d, yest)) return "Yesterday";
-  return d.toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" });
+  return formatDate(d, { weekday: "short", day: "numeric", month: "short" });
 };
 
 export function Balance() {
@@ -172,20 +173,29 @@ export function Balance() {
   const balancePositive = balance >= 0;
 
   const onDeleteTxn = async (t: UnifiedTxn) => {
+    if (!window.confirm(`Delete "${t.title}"?`)) {
+      return;
+    }
+
     const rawId = t.id.replace(/^(inc|exp|lg)-/, "");
     try {
       if (t.id.startsWith("inc-")) {
-        await deleteIncome(rawId);
+        const { error } = await deleteIncome(rawId);
+        if (error) throw error;
         setIncomes((prev) => prev.filter((i) => i.id !== rawId));
       } else if (t.id.startsWith("exp-")) {
-        await deleteExpense(rawId);
+        const { error } = await deleteExpense(rawId);
+        if (error) throw error;
         setExpenses((prev) => prev.filter((e) => e.id !== rawId));
       } else if (t.id.startsWith("lg-")) {
-        await deleteLedgerEntry(rawId);
+        const { error } = await deleteLedgerEntry(rawId);
+        if (error) throw error;
         setLedgerEntries((prev) => prev.filter((l) => l.id !== rawId));
       }
+      toast.success("Transaction deleted");
     } catch (err) {
       console.error("Error deleting transaction:", err);
+      toast.error("Failed to delete transaction");
     }
   };
 
@@ -276,6 +286,7 @@ export function Balance() {
       <section className="grid grid-cols-3 gap-2 mb-5">
         <AddIncomeDialog
           defaultMonth={month}
+          onSuccess={(newIncome) => setIncomes((prev) => [newIncome, ...prev])}
           trigger={
             <button className="glass-card rounded-2xl p-3 flex flex-col items-center gap-1.5 hover:bg-secondary/30 transition-colors">
               <span className="h-9 w-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
@@ -288,6 +299,7 @@ export function Balance() {
         <AddLedgerDialog
           defaultDirection="lent"
           defaultEntryType="loan"
+          onSuccess={(entry) => setLedgerEntries((prev) => [entry, ...prev])}
           trigger={
             <button className="glass-card rounded-2xl p-3 flex flex-col items-center gap-1.5 hover:bg-secondary/30 transition-colors">
               <span className="h-9 w-9 rounded-xl bg-warning/15 text-warning flex items-center justify-center">
@@ -300,6 +312,7 @@ export function Balance() {
         <AddLedgerDialog
           defaultDirection="borrowed"
           defaultEntryType="loan"
+          onSuccess={(entry) => setLedgerEntries((prev) => [entry, ...prev])}
           trigger={
             <button className="glass-card rounded-2xl p-3 flex flex-col items-center gap-1.5 hover:bg-secondary/30 transition-colors">
               <span className="h-9 w-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
@@ -325,6 +338,7 @@ export function Balance() {
             <div className="flex justify-center gap-2">
               <AddIncomeDialog
                 defaultMonth={month}
+                onSuccess={(newIncome) => setIncomes((prev) => [newIncome, ...prev])}
                 trigger={
                   <Button size="sm" className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow">
                     <Plus className="h-4 w-4 mr-1" /> Add income

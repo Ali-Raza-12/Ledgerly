@@ -56,7 +56,7 @@ export function useCashflow() {
         amount: i.amount,
         signed: i.amount,
         date: i.date,
-        month: i.month,
+        month: monthKey(i.date),
         category: i.source,
         meta: i.source,
       });
@@ -71,7 +71,7 @@ export function useCashflow() {
         amount: e.amount,
         signed: -e.amount,
         date: e.date,
-        month: e.month,
+        month: monthKey(e.date),
         category: e.category,
         meta: e.type === "bike" ? "bike" : undefined,
       });
@@ -99,7 +99,7 @@ export function useCashflow() {
         amount: l.amount,
         signed: isOut ? -l.amount : l.amount,
         date: l.date,
-        month: l.date.slice(0, 7),
+        month: monthKey(l.date),
         category: l.person,
         meta: l.entryType,
       });

@@ -15,6 +15,17 @@ export interface Expense {
   createdAt: string;
 }
 
+export interface ExpenseInput {
+  title: string;
+  amount: number;
+  category: string;
+  type: ExpenseType;
+  bikeSubType?: BikeSubType;
+  date: string;
+  month?: string;
+  note?: string;
+}
+
 export interface Category {
   id: string;
   name: string;

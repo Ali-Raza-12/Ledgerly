@@ -15,13 +15,14 @@ import { todayISO } from "@/lib/format";
 import { toast } from "sonner";
 import { ArrowDownLeft, ArrowUpRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { LedgerDirection, LedgerEntryType } from "@/types/ledger";
+import type { LedgerDirection, LedgerEntry, LedgerEntryInput, LedgerEntryType } from "@/types/ledger";
 
 interface Props {
   trigger: React.ReactNode;
   defaultPerson?: string;
   defaultEntryType?: LedgerEntryType;
   defaultDirection?: LedgerDirection;
+  onSuccess?: (entry: LedgerEntry) => void;
 }
 
 export function AddLedgerDialog({
@@ -29,23 +30,8 @@ export function AddLedgerDialog({
   defaultPerson = "",
   defaultEntryType = "loan",
   defaultDirection = "lent",
+  onSuccess,
 }: Props) {
-  const addEntry = async (
-    entry: Omit<Parameters<typeof addLedgerEntry>[0], "id">,
-  ) => {
-    const { error } = await addLedgerEntry(entry);
-    if (error) {
-      toast.error("Failed to save entry");
-      console.error(error);
-      return false;
-    }
-
-    toast.success(
-      entry.entryType === "loan" ? "Recorded" : "Settlement saved",
-    );
-    return true;
-  };
-
   const [open, setOpen] = useState(false);
   const [person, setPerson] = useState(defaultPerson);
   const [amount, setAmount] = useState("");
@@ -61,6 +47,22 @@ export function AddLedgerDialog({
     setEntryType(defaultEntryType);
     setDate(todayISO());
     setNote("");
+  };
+
+  const addEntry = async (entry: LedgerEntryInput) => {
+    const { data, error } = await addLedgerEntry(entry);
+    if (error) {
+      toast.error("Failed to save entry");
+      console.error(error);
+      return false;
+    }
+
+    if (data?.[0]) {
+      onSuccess?.(data[0]);
+    }
+
+    toast.success(entry.entryType === "loan" ? "Recorded" : "Settlement saved");
+    return true;
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -89,9 +91,9 @@ export function AddLedgerDialog({
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o) reset();
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) reset();
       }}
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -101,8 +103,7 @@ export function AddLedgerDialog({
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-4">
-          {/* Entry type tabs */}
-          <div className="grid grid-cols-2 gap-2 p-1 bg-secondary rounded-xl">
+          <div className="grid grid-cols-2 gap-2 rounded-xl bg-secondary p-1">
             <TabButton
               active={entryType === "loan"}
               onClick={() => setEntryType("loan")}
@@ -117,7 +118,6 @@ export function AddLedgerDialog({
             </TabButton>
           </div>
 
-          {/* Direction */}
           <div className="grid grid-cols-2 gap-2">
             <DirBtn
               active={direction === "lent"}
@@ -142,7 +142,7 @@ export function AddLedgerDialog({
               value={person}
               onChange={(e) => setPerson(e.target.value)}
               placeholder="e.g. Ali, Sarah"
-              className="h-11 rounded-xl bg-secondary border-border"
+              className="h-11 rounded-xl border-border bg-secondary"
               autoFocus={!defaultPerson}
             />
           </div>
@@ -157,7 +157,7 @@ export function AddLedgerDialog({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0"
-                className="h-11 rounded-xl bg-secondary border-border fin-number"
+                className="h-11 rounded-xl border-border bg-secondary fin-number"
               />
             </div>
             <div className="space-y-2">
@@ -167,7 +167,7 @@ export function AddLedgerDialog({
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="h-11 rounded-xl bg-secondary border-border"
+                className="h-11 rounded-xl border-border bg-secondary"
               />
             </div>
           </div>
@@ -179,16 +179,16 @@ export function AddLedgerDialog({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
-              placeholder="Reason or reminder…"
-              className="rounded-xl bg-secondary border-border resize-none"
+              placeholder="Reason or reminder..."
+              className="resize-none rounded-xl border-border bg-secondary"
             />
           </div>
 
           <Button
             type="submit"
-            className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold shadow-glow"
+            className="h-12 w-full rounded-xl bg-gradient-primary font-semibold text-primary-foreground shadow-glow"
           >
-            <Check className="h-4 w-4 mr-2" /> Save
+            <Check className="mr-2 h-4 w-4" /> Save
           </Button>
         </form>
       </DialogContent>
@@ -210,10 +210,8 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "py-2 rounded-lg text-sm font-medium transition-colors",
-        active
-          ? "bg-background text-foreground shadow-sm"
-          : "text-muted-foreground",
+        "rounded-lg py-2 text-sm font-medium transition-colors",
+        active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
       )}
     >
       {children}
@@ -239,7 +237,7 @@ function DirBtn({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2 px-3 py-3 rounded-xl border transition-all text-sm font-medium",
+        "flex items-center gap-2 rounded-xl border px-3 py-3 text-sm font-medium transition-all",
         active
           ? tone === "primary"
             ? "border-primary/40 bg-primary/10 text-primary"

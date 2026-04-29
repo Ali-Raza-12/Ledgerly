@@ -13,6 +13,15 @@ export interface LedgerEntry {
   createdAt: string;
 }
 
+export interface LedgerEntryInput {
+  person: string;
+  direction: LedgerDirection;
+  amount: number;
+  date: string;
+  note?: string;
+  entryType: LedgerEntryType;
+}
+
 export interface PersonBalance {
   person: string;
   net: number; // positive => they owe you; negative => you owe them

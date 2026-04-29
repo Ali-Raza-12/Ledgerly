@@ -8,13 +8,13 @@ import { monthKey, todayISO } from "@/lib/format";
 import { toast } from "sonner";
 import { Check, Briefcase, PiggyBank, Gift, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { IncomeSource } from "@/types/income";
+import type { Income, IncomeInput, IncomeSource } from "@/types/income";
 import { addIncome } from "@/services/incomeService";
 
 interface Props {
   trigger: React.ReactNode;
-  defaultMonth?: string; // yyyy-mm — used to suggest a date
-  onSuccess?: (income: any) => void;
+  defaultMonth?: string;
+  onSuccess?: (income: Income) => void;
 }
 
 const SOURCES: { id: IncomeSource; label: string; icon: typeof Briefcase }[] = [
@@ -54,13 +54,16 @@ export function AddIncomeDialog({ trigger, defaultMonth, onSuccess }: Props) {
       return;
     }
 
-    const { data, error } = await addIncome({
+    const payload: IncomeInput = {
       title: title.trim() || SOURCES.find((s) => s.id === source)!.label,
       amount: amt,
       source,
       date,
+      month: monthKey(date),
       note: note.trim() || undefined,
-    });
+    };
+
+    const { data, error } = await addIncome(payload);
 
     if (error) {
       toast.error("Failed to add income");
@@ -68,16 +71,20 @@ export function AddIncomeDialog({ trigger, defaultMonth, onSuccess }: Props) {
       return;
     }
 
-    toast.success("Income added");
-    if (data && onSuccess) {
-      onSuccess(data[0]);
+    if (data?.[0]) {
+      onSuccess?.(data[0]);
     }
+
+    toast.success("Income added");
     reset();
     setOpen(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+    <Dialog open={open} onOpenChange={(nextOpen) => {
+      setOpen(nextOpen);
+      if (!nextOpen) reset();
+    }}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="glass-card border-border max-w-md rounded-3xl">
         <DialogHeader>
@@ -86,21 +93,21 @@ export function AddIncomeDialog({ trigger, defaultMonth, onSuccess }: Props) {
 
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-4 gap-2">
-            {SOURCES.map((s) => {
-              const active = s.id === source;
-              const Icon = s.icon;
+            {SOURCES.map((item) => {
+              const active = item.id === source;
+              const Icon = item.icon;
               return (
                 <button
                   type="button"
-                  key={s.id}
-                  onClick={() => setSource(s.id)}
+                  key={item.id}
+                  onClick={() => setSource(item.id)}
                   className={cn(
-                    "flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all",
-                    active ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-secondary/50 text-muted-foreground"
+                    "flex flex-col items-center gap-1.5 rounded-2xl border py-3 transition-all",
+                    active ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-secondary/50 text-muted-foreground",
                   )}
                 >
                   <Icon className="h-5 w-5" />
-                  <span className="text-[11px] font-medium">{s.label}</span>
+                  <span className="text-[11px] font-medium">{item.label}</span>
                 </button>
               );
             })}
@@ -114,7 +121,7 @@ export function AddIncomeDialog({ trigger, defaultMonth, onSuccess }: Props) {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0"
-              className="h-12 rounded-xl bg-secondary border-border fin-number text-lg"
+              className="h-12 rounded-xl border-border bg-secondary text-lg fin-number"
               autoFocus
             />
           </div>
@@ -126,7 +133,7 @@ export function AddIncomeDialog({ trigger, defaultMonth, onSuccess }: Props) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. April Salary"
-                className="h-11 rounded-xl bg-secondary border-border"
+                className="h-11 rounded-xl border-border bg-secondary"
               />
             </div>
             <div className="space-y-2">
@@ -135,7 +142,7 @@ export function AddIncomeDialog({ trigger, defaultMonth, onSuccess }: Props) {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="h-11 rounded-xl bg-secondary border-border"
+                className="h-11 rounded-xl border-border bg-secondary"
               />
             </div>
           </div>
@@ -146,15 +153,15 @@ export function AddIncomeDialog({ trigger, defaultMonth, onSuccess }: Props) {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
-              className="rounded-xl bg-secondary border-border resize-none"
+              className="resize-none rounded-xl border-border bg-secondary"
             />
           </div>
 
           <Button
             type="submit"
-            className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold shadow-glow"
+            className="h-12 w-full rounded-xl bg-gradient-primary font-semibold text-primary-foreground shadow-glow"
           >
-            <Check className="h-4 w-4 mr-2" /> Save income
+            <Check className="mr-2 h-4 w-4" /> Save income
           </Button>
         </form>
       </DialogContent>

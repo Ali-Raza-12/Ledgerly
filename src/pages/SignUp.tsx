@@ -7,6 +7,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { AuthShell, Field } from "./SignIn";
 
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 export default function SignUp() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
@@ -22,11 +25,11 @@ export default function SignUp() {
     if (password.length < 6) return toast.error("Password must be at least 6 characters");
     setLoading(true);
     try {
-      await signUp(name, email, password);
+      await signUp(email, password, name);
       toast.success("Account created");
       navigate("/", { replace: true });
-    } catch {
-      toast.error("Could not create account");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not create account"));
     } finally {
       setLoading(false);
     }

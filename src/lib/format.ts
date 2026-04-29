@@ -13,8 +13,35 @@ export const formatCurrency = (amount: number, currency = "PKR") => {
 export const formatCompact = (amount: number) =>
   new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 }).format(amount);
 
+const pad = (value: number) => String(value).padStart(2, "0");
+
+export const localDateFrom = (date: Date | string) => {
+  if (date instanceof Date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  const isoDateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (isoDateMatch) {
+    const [, year, month, day] = isoDateMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  const monthMatch = /^(\d{4})-(\d{2})$/.exec(date);
+  if (monthMatch) {
+    const [, year, month] = monthMatch;
+    return new Date(Number(year), Number(month) - 1, 1);
+  }
+
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date();
+  }
+
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+};
+
 export const monthKey = (date: Date | string) => {
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = localDateFrom(date);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
 
@@ -34,4 +61,13 @@ export const previousMonth = (key: string) => {
   return monthKey(d);
 };
 
-export const todayISO = () => new Date().toISOString().slice(0, 10);
+export const todayISO = () => {
+  const today = new Date();
+  return `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+};
+
+export const formatDate = (
+  date: Date | string,
+  options: Intl.DateTimeFormatOptions,
+  locale = "en-US",
+) => localDateFrom(date).toLocaleDateString(locale, options);

@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Mail, Save, Shield, User as UserIcon, Calendar } from "lucide-react";
+import { LogOut, Mail, Save, Shield, User as UserIcon, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,27 +9,46 @@ import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 export default function Profile() {
   const { user, signOut, updateProfile } = useAuth();
   const navigate = useNavigate();
-  const [name, setName] = useState(user?.name ?? "");
+  const userName =
+    (typeof user?.user_metadata?.name === "string" ? user.user_metadata.name : undefined) ||
+    user?.email?.split("@")[0] ||
+    "User";
+  const [name, setName] = useState(userName);
   const [email, setEmail] = useState(user?.email ?? "");
+  const [loading, setLoading] = useState(false);
 
   if (!user) return null;
 
-  const initials = user.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
-  const joined = new Date(user.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  const initials = userName.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+  const joined = new Date(user.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 
-  const onSave = (e: FormEvent) => {
+  const onSave = async (e: FormEvent) => {
     e.preventDefault();
-    updateProfile({ name, email });
-    toast.success("Profile updated");
+    setLoading(true);
+    try {
+      await updateProfile({ name, email });
+      toast.success("Profile updated");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to update profile"));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const onLogout = () => {
-    signOut();
-    toast.success("Signed out");
-    navigate("/signin", { replace: true });
+  const onLogout = async () => {
+    try {
+      await signOut();
+      toast.success("Signed out");
+      navigate("/signin", { replace: true });
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to sign out"));
+    }
   };
 
   return (
@@ -44,7 +63,7 @@ export default function Profile() {
             <AvatarFallback className="bg-gradient-primary text-primary-foreground text-2xl font-semibold">{initials}</AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <div className="text-xl font-semibold truncate">{user.name}</div>
+            <div className="text-xl font-semibold truncate">{userName}</div>
             <div className="text-sm text-muted-foreground truncate flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{user.email}</div>
             <div className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />Joined {joined}</div>
           </div>
@@ -66,8 +85,9 @@ export default function Profile() {
             <Label htmlFor="p-email" className="text-xs uppercase tracking-wider text-muted-foreground">Email</Label>
             <Input id="p-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 bg-secondary/60 border-border" />
           </div>
-          <Button type="submit" className="bg-gradient-primary text-primary-foreground font-semibold shadow-glow">
-            <Save className="h-4 w-4" /> Save changes
+          <Button type="submit" disabled={loading} className="bg-gradient-primary text-primary-foreground font-semibold shadow-glow">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {loading ? "Saving..." : "Save changes"}
           </Button>
         </form>
       </div>

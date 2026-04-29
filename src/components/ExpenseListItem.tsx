@@ -3,10 +3,11 @@ import { CategoryIcon } from "./CategoryIcon";
 import { getCategories } from "@/services/categoryService";
 import { deleteExpense } from "@/services/expenseService";
 import { useEffect, useState } from "react";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { BIKE_SUBTYPES } from "@/lib/categories";
+import { toast } from "sonner";
 
 export function ExpenseListItem({ expense, onDelete }: { expense: Expense; onDelete?: (id: string) => void }) {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -27,13 +28,22 @@ export function ExpenseListItem({ expense, onDelete }: { expense: Expense; onDel
   const sub = expense.bikeSubType ? BIKE_SUBTYPES.find((s) => s.id === expense.bikeSubType) : null;
   const icon = sub?.icon || cat?.icon || "Circle";
   const color = sub?.color || cat?.color || "#94a3b8";
-  const date = new Date(expense.date).toLocaleDateString("en-US", { day: "numeric", month: "short" });
+  const date = formatDate(expense.date, { day: "numeric", month: "short" });
 
   const handleDelete = async () => {
-    const { error } = await deleteExpense(expense.id);
-    if (!error && onDelete) {
-      onDelete(expense.id);
+    if (!window.confirm(`Delete "${expense.title}"?`)) {
+      return;
     }
+
+    const { error } = await deleteExpense(expense.id);
+    if (error) {
+      toast.error("Failed to delete expense");
+      console.error(error);
+      return;
+    }
+
+    toast.success("Expense deleted");
+    onDelete?.(expense.id);
   };
 
   return (

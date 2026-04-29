@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Search, SlidersHorizontal, Download } from "lucide-react";
@@ -10,102 +10,120 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ExpenseListItem } from "@/components/ExpenseListItem";
-import { formatCurrency, monthLabel } from "@/lib/format";
+import { formatCurrency, monthKey, monthLabel } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getExpenses } from "@/services/expenseService";
+import { getCategories } from "@/services/categoryService";
 import { Category, Expense } from "@/types/expense";
+import { Loader } from "@/components/Loader";
 
 export function History() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [month, setMonth] = useState<string>("all");
   const [cat, setCat] = useState<string>("all");
   const [minAmt, setMinAmt] = useState("");
 
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-
   useEffect(() => {
     const fetchData = async () => {
-      const { data, error } = await getExpenses();
+      const [{ data: expenseData, error: expenseError }, { data: categoryData, error: categoryError }] =
+        await Promise.all([getExpenses(), getCategories()]);
 
-      if (error) {
-        console.error(error);
-        return;
+      if (expenseError) {
+        console.error(expenseError);
+        toast.error("Failed to load expenses");
       }
 
-      setExpenses(data || []);
+      if (categoryError) {
+        console.error(categoryError);
+        toast.error("Failed to load categories");
+      }
+
+      setExpenses(expenseData || []);
+      setCategories(categoryData || []);
+      setLoading(false);
     };
 
     fetchData();
   }, []);
 
   const months = useMemo(() => {
-    return [...new Set(expenses.map((e) => e.date.slice(0, 7)))].sort().reverse();
+    return [...new Set(expenses.map((expense) => monthKey(expense.date)))].sort().reverse();
   }, [expenses]);
 
   const filtered = useMemo(() => {
-    return expenses.filter((e) => {
-      if (month !== "all" && e.date.slice(0, 7) !== month) return false;
-      if (cat !== "all" && e.category !== cat) return false;
-      if (minAmt && e.amount < parseFloat(minAmt)) return false;
+    return expenses.filter((expense) => {
+      if (month !== "all" && monthKey(expense.date) !== month) return false;
+      if (cat !== "all" && expense.category !== cat) return false;
+      if (minAmt && expense.amount < parseFloat(minAmt)) return false;
+
       if (q) {
-        const s = q.toLowerCase();
-        if (
-          !(e.title || "").toLowerCase().includes(s) &&
-          !(e.note || "").toLowerCase().includes(s)
-        )
-          return false;
+        const search = q.toLowerCase();
+        const titleMatches = (expense.title || "").toLowerCase().includes(search);
+        const noteMatches = (expense.note || "").toLowerCase().includes(search);
+        if (!titleMatches && !noteMatches) return false;
       }
+
       return true;
     });
   }, [expenses, month, cat, minAmt, q]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, typeof filtered>();
-    for (const e of filtered) {
-      const arr = map.get(e.date.slice(0, 7)) || [];
-      arr.push(e);
-      map.set(e.date.slice(0, 7), arr);
+    const map = new Map<string, Expense[]>();
+    for (const expense of filtered) {
+      const key = monthKey(expense.date);
+      const currentItems = map.get(key) || [];
+      currentItems.push(expense);
+      map.set(key, currentItems);
     }
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   }, [filtered]);
 
-  const total = filtered.reduce((s, e) => s + Number(e.amount), 0);
+  const total = filtered.reduce((sum, expense) => sum + expense.amount, 0);
 
   const exportCSV = () => {
     const rows = [
       ["Date", "Title", "Category", "Type", "Sub", "Amount", "Note"],
     ];
-    for (const e of filtered) {
+
+    for (const expense of filtered) {
       rows.push([
-        e.date,
-        e.title,
-        e.category,
-        e.type,
-        e.bikeSubType || "",
-        String(e.amount),
-        e.note || "",
+        expense.date,
+        expense.title,
+        expense.category,
+        expense.type,
+        expense.bikeSubType || "",
+        String(expense.amount),
+        expense.note || "",
       ]);
     }
+
     const csv = rows
-      .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(","))
+      .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
       .join("\n");
+
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `expenses-${month === "all" ? "all" : month}.csv`;
-    a.click();
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `expenses-${month === "all" ? "all" : month}.csv`;
+    link.click();
     URL.revokeObjectURL(url);
     toast.success("Exported CSV");
   };
+
+  if (loading) {
+    return <Loader label="Loading history" sublabel="Gathering your expense timeline" />;
+  }
 
   return (
     <div className="animate-fade-in">
       <PageHeader
         title="History"
-        subtitle={`${filtered.length} transactions • ${formatCurrency(total)}`}
+        subtitle={`${filtered.length} transactions - ${formatCurrency(total)}`}
         action={
           <Button
             variant="outline"
@@ -113,56 +131,56 @@ export function History() {
             onClick={exportCSV}
             className="rounded-xl"
           >
-            <Download className="h-4 w-4 mr-1.5" /> Export
+            <Download className="mr-1.5 h-4 w-4" /> Export
           </Button>
         }
       />
 
-      <div className="space-y-3 mb-5">
+      <div className="mb-5 space-y-3">
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search title or notes…"
-            className="pl-10 h-12 rounded-2xl bg-secondary border-border"
+            placeholder="Search title or notes..."
+            className="h-12 rounded-2xl border-border bg-secondary pl-10"
           />
         </div>
         <div className="grid grid-cols-3 gap-2">
           <Select value={month} onValueChange={setMonth}>
-            <SelectTrigger className="h-11 rounded-xl bg-secondary border-border">
+            <SelectTrigger className="h-11 rounded-xl border-border bg-secondary">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All months</SelectItem>
-              {months.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {monthLabel(m)}
+              {months.map((item) => (
+                <SelectItem key={item} value={item}>
+                  {monthLabel(item)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={cat} onValueChange={setCat}>
-            <SelectTrigger className="h-11 rounded-xl bg-secondary border-border">
+            <SelectTrigger className="h-11 rounded-xl border-border bg-secondary">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <div className="relative">
-            <SlidersHorizontal className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <SlidersHorizontal className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="number"
               value={minAmt}
               onChange={(e) => setMinAmt(e.target.value)}
               placeholder="Min Rs"
-              className="pl-9 h-11 rounded-xl bg-secondary border-border"
+              className="h-11 rounded-xl border-border bg-secondary pl-9"
             />
           </div>
         </div>
@@ -174,21 +192,25 @@ export function History() {
         </div>
       ) : (
         <div className="space-y-6">
-          {grouped.map(([m, items]) => {
-            const monthTotal = items.reduce((s, e) => s + e.amount, 0);
+          {grouped.map(([groupMonth, items]) => {
+            const monthTotal = items.reduce((sum, expense) => sum + expense.amount, 0);
             return (
-              <section key={m}>
-                <div className="flex items-center justify-between px-2 mb-2">
+              <section key={groupMonth}>
+                <div className="mb-2 flex items-center justify-between px-2">
                   <h3 className="text-xs uppercase tracking-widest text-muted-foreground">
-                    {monthLabel(m)}
+                    {monthLabel(groupMonth)}
                   </h3>
-                  <span className="text-xs fin-number text-muted-foreground">
+                  <span className="fin-number text-xs text-muted-foreground">
                     {formatCurrency(monthTotal)}
                   </span>
                 </div>
                 <div className="glass-card rounded-3xl p-2 space-y-1">
-                  {items.map((e) => (
-                    <ExpenseListItem key={e.id} expense={e} />
+                  {items.map((expense) => (
+                    <ExpenseListItem
+                      key={expense.id}
+                      expense={expense}
+                      onDelete={(id) => setExpenses((prev) => prev.filter((item) => item.id !== id))}
+                    />
                   ))}
                 </div>
               </section>
