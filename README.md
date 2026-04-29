@@ -1,4 +1,4 @@
-# Apex Finance
+# Ledgerly
 
 A mobile-first personal finance tracker built with React, TypeScript, Tailwind CSS, and Supabase.
 

@@ -23,7 +23,7 @@ export default function SignIn() {
     setLoading(true);
     try {
       await signIn(email, password);
-      toast.success("Welcome back");
+      toast.success("Signed in");
       navigate(location.state?.from || "/", { replace: true });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not sign in");
@@ -33,7 +33,7 @@ export default function SignIn() {
   };
 
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in to continue tracking your money">
+    <AuthShell title="Welcome back" subtitle="Sign in to manage your money in one place">
       <form onSubmit={onSubmit} className="space-y-5">
         <Field id="email" label="Email" icon={<Mail className="h-4 w-4" />}>
           <Input
@@ -102,7 +102,7 @@ export function AuthShell({
           <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
         </div>
         <div className="glass-card rounded-3xl p-6 sm:p-8">{children}</div>
-        <p className="mt-6 text-center text-xs text-muted-foreground">Premium - Secure - Encrypted</p>
+        <p className="mt-6 text-center text-xs text-muted-foreground">Private, secure, and built for daily finance tracking</p>
       </div>
     </div>
   );

@@ -25,7 +25,7 @@ export default function Profile() {
 
   if (!user) return null;
 
-  const avatarId = (user.user_metadata?.avatar as string | undefined) ?? "aurora";
+  const avatarId = (user.user_metadata?.avatar as string | undefined) ?? "ninja";
   const joined = new Date(user.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 
   const onSave = async (e: FormEvent) => {

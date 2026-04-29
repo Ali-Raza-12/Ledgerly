@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UserAvatar } from "./UserAvatar";
-import { PREMIUM_AVATARS } from "@/lib/avatars";
+import { AVATAR_OPTIONS } from "@/lib/avatars";
 import { AvatarArt } from "./AvatarArt";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -28,7 +28,7 @@ export function TopBar() {
     (typeof user.user_metadata?.name === "string" ? user.user_metadata.name : undefined) ||
     user.email?.split("@")[0] ||
     "User";
-  const avatarId = (user.user_metadata?.avatar as string | undefined) ?? "aurora";
+  const avatarId = (user.user_metadata?.avatar as string | undefined) ?? "ninja";
 
   const handleSignOut = async () => {
     try {
@@ -54,7 +54,7 @@ export function TopBar() {
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
       <div className="max-w-3xl mx-auto px-4 lg:px-8 h-16 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Welcome back</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Welcome Back</p>
           <p className="truncate text-sm font-semibold">{name}</p>
         </div>
 
@@ -87,14 +87,14 @@ export function TopBar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={() => navigate("/profile")}
-              className="rounded-lg cursor-pointer focus:bg-primary/10 focus:text-primary"
+              className="rounded-lg cursor-pointer focus:bg-primary/10 focus:text-primary gap-1"
             >
               <UserIcon className="h-4 w-4" />
-              Profile page
+              Profile
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => setPickerOpen(true)}
-              className="rounded-lg cursor-pointer focus:bg-primary/10 focus:text-primary"
+              className="rounded-lg cursor-pointer focus:bg-primary/10 focus:text-primary gap-1"
             >
               <Sparkles className="h-4 w-4" />
               Choose avatar
@@ -102,7 +102,7 @@ export function TopBar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={handleSignOut}
-              className="rounded-lg cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+              className="rounded-lg cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive gap-1"
             >
               <LogOut className="h-4 w-4" />
               Sign out
@@ -112,16 +112,16 @@ export function TopBar() {
       </div>
 
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogContent className="glass-surface border-border max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="app-scrollbar glass-surface border-border max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Choose your avatar</DialogTitle>
-            <DialogDescription>Pick a premium character — ninja, anime, fantasy and more.</DialogDescription>
+            <DialogDescription>Pick the style that fits your profile.</DialogDescription>
           </DialogHeader>
           {(["Characters", "Animals", "Fantasy", "Sci-Fi"] as const).map((cat) => (
             <div key={cat} className="pt-3">
               <p className="px-1 pb-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{cat}</p>
               <div className="grid grid-cols-4 gap-3">
-                {PREMIUM_AVATARS.filter((a) => a.category === cat).map((a) => {
+                {AVATAR_OPTIONS.filter((a) => a.category === cat).map((a) => {
                   const active = a.id === avatarId;
                   return (
                     <button

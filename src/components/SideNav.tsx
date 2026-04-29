@@ -1,10 +1,7 @@
-import { NavLink, useNavigate } from "react-router-dom";
-import { Home, Clock, Car, BarChart3, Plus, Wallet, HandCoins, LineChart, LogOut } from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { Home, Clock, Car, BarChart3, Plus, Wallet, HandCoins, LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth";
-import { UserAvatar } from "./UserAvatar";
 
-// Ordered by importance: most-used at top, supporting tools below, account last.
 const items = [
   { to: "/", label: "Dashboard", icon: Home },
   { to: "/balance", label: "Balance", icon: LineChart },
@@ -16,23 +13,6 @@ const items = [
 ];
 
 export function SideNav() {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-  const displayName =
-    (typeof user?.user_metadata?.name === "string" ? user.user_metadata.name : undefined) ||
-    user?.email?.split("@")[0] ||
-    "User";
-  const avatarId = (user?.user_metadata?.avatar as string | undefined) ?? "aurora";
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate("/signin", { replace: true });
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
-
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 self-start border-r border-border bg-sidebar/60 backdrop-blur-xl lg:flex lg:flex-col">
       <div className="flex h-20 items-center gap-3 border-b border-border px-6">
@@ -40,8 +20,8 @@ export function SideNav() {
           <Wallet className="h-5 w-5 text-primary-foreground" />
         </div>
         <div>
-          <div className="font-semibold tracking-tight">Ledger</div>
-          <div className="text-xs text-muted-foreground">Expense tracker</div>
+          <div className="font-semibold tracking-tight">Ledgerly</div>
+          <div className="text-xs text-muted-foreground">Personal finance hub</div>
         </div>
       </div>
 
@@ -65,32 +45,6 @@ export function SideNav() {
           </NavLink>
         ))}
       </nav>
-
-      {user && (
-        <div className="border-t border-border px-3 pb-3 pt-3">
-          <div className="rounded-xl border border-border bg-secondary/30 p-2">
-            <button
-              type="button"
-              onClick={() => navigate("/profile")}
-              className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-all duration-300 hover:bg-secondary"
-            >
-              <UserAvatar name={displayName} avatarId={avatarId} size="md" ring={false} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{displayName}</div>
-                <div className="truncate text-xs text-muted-foreground">{user.email}</div>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="mt-2 flex w-full items-center gap-2 rounded-xl px-2 py-2 text-sm text-muted-foreground transition-all duration-300 hover:bg-destructive/10 hover:text-destructive"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </button>
-          </div>
-        </div>
-      )}
     </aside>
   );
 }
