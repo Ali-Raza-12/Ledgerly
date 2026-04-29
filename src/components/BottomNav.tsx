@@ -8,7 +8,6 @@ import {
   Plus,
   HandCoins,
   LineChart,
-  User,
   MoreHorizontal,
   X,
 } from "lucide-react";
@@ -41,7 +40,6 @@ const moreItems: NavItemDef[] = [
   { to: "/lending", label: "Lending", icon: HandCoins },
   { to: "/bike", label: "Vehicle", icon: Car },
   { to: "/analytics", label: "Stats", icon: BarChart3 },
-  { to: "/profile", label: "Profile", icon: User },
 ];
 
 export function BottomNav() {
@@ -104,7 +102,7 @@ export function BottomNav() {
                   </button>
                 </DrawerClose>
               </DrawerHeader>
-              <div className="grid grid-cols-4 gap-3 px-4 pb-8">
+              <div className="grid grid-cols-3 gap-3 px-4 pb-8">
                 {moreItems.map((item) => {
                   const active = pathname === item.to;
                   const Icon = item.icon;
