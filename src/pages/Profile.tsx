@@ -4,7 +4,7 @@ import { LogOut, Mail, Save, Shield, User as UserIcon, Calendar, Loader2 } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -25,7 +25,7 @@ export default function Profile() {
 
   if (!user) return null;
 
-  const initials = userName.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+  const avatarId = (user.user_metadata?.avatar as string | undefined) ?? "aurora";
   const joined = new Date(user.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 
   const onSave = async (e: FormEvent) => {
@@ -59,9 +59,7 @@ export default function Profile() {
       <div className="glass-card rounded-3xl p-6 sm:p-8 relative overflow-hidden">
         <div className="absolute -top-20 -right-20 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
         <div className="relative flex items-center gap-5">
-          <Avatar className="h-20 w-20 ring-2 ring-primary/40 shadow-glow">
-            <AvatarFallback className="bg-gradient-primary text-primary-foreground text-2xl font-semibold">{initials}</AvatarFallback>
-          </Avatar>
+          <UserAvatar name={userName} avatarId={avatarId} size="xl" />
           <div className="min-w-0">
             <div className="text-xl font-semibold truncate">{userName}</div>
             <div className="text-sm text-muted-foreground truncate flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{user.email}</div>
