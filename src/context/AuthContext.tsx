@@ -68,17 +68,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const updateProfile = async (data: { name?: string; email?: string }) => {
+  const updateProfile = async (data: { name?: string; email?: string; avatar?: string }) => {
     const updates: UserAttributes = {};
 
     if (data.email) {
       updates.email = data.email;
     }
 
-    if (data.name) {
+    if (data.name !== undefined || data.avatar !== undefined) {
       updates.data = {
         ...(user?.user_metadata ?? {}),
-        name: data.name,
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.avatar !== undefined ? { avatar: data.avatar } : {}),
       };
     }
 
