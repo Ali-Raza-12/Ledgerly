@@ -3,13 +3,22 @@ import { PageHeader } from "@/components/PageHeader";
 import { BIKE_SUBTYPES } from "@/lib/categories";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { formatCurrency, formatDate, todayISO } from "@/lib/format";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Loader } from "@/components/Loader";
-import { Car, Fuel, Droplets, Wrench, Hammer, Plus, Trash2, Gauge, TrendingUp, BadgeCheck, Info } from "lucide-react";
+import {
+  Fuel,
+  Plus,
+  Trash2,
+  Gauge,
+  TrendingUp,
+  BadgeCheck,
+  Info,
+  Wallet,
+  Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getExpenses, addExpense, deleteExpense } from "@/services/expenseService";
@@ -17,17 +26,7 @@ import { addFuelLog, computeFuelCycles, deleteFuelLog, getFuelLogs } from "@/ser
 import type { Expense, BikeSubType } from "@/types/expense";
 import type { FuelLog } from "@/types/fuel";
 
-type TabKey = "fuel" | "oil" | "maintenance" | "repairs";
-
-const TAB_META: Record<TabKey, { label: string; icon: typeof Fuel; color: string; subType?: BikeSubType }> = {
-  fuel: { label: "Fuel", icon: Fuel, color: "#22c55e", subType: "petrol" },
-  oil: { label: "Oil", icon: Droplets, color: "#f59e0b", subType: "oil" },
-  maintenance: { label: "Maintenance", icon: Wrench, color: "#a855f7", subType: "maintenance" },
-  repairs: { label: "Repairs", icon: Hammer, color: "#ef4444", subType: "repairs" },
-};
-
 export function BikeTracker() {
-  const [tab, setTab] = useState<TabKey>("fuel");
   const [loading, setLoading] = useState(true);
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -37,7 +36,6 @@ export function BikeTracker() {
     const [fuelRes, expRes] = await Promise.all([getFuelLogs(), getExpenses()]);
     if (fuelRes.error) {
       const msg = fuelRes.error instanceof Error ? fuelRes.error.message : "Failed to load fuel logs";
-      // Likely table missing — show actionable hint, don't crash UI
       if (/vehicle_fuel_logs/i.test(msg) || /relation .* does not exist/i.test(msg)) {
         toast.error("Fuel tracking table missing — please run the migration.");
       } else {
@@ -58,153 +56,432 @@ export function BikeTracker() {
     refresh();
   }, []);
 
-  return (
-    <div className="animate-fade-in pb-10">
-      <PageHeader title="Vehicle" subtitle="Fuel tracking & vehicle expenses" />
-
-      <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="w-full">
-        <TabsList className="mb-5 grid h-auto w-full grid-cols-4 rounded-2xl bg-secondary/60 p-1">
-          {(Object.keys(TAB_META) as TabKey[]).map((k) => {
-            const meta = TAB_META[k];
-            const Icon = meta.icon;
-            return (
-              <TabsTrigger
-                key={k}
-                value={k}
-                className="flex flex-col gap-1 rounded-xl py-2.5 text-xs data-[state=active]:bg-background data-[state=active]:shadow-glow data-[state=active]:text-foreground"
-              >
-                <Icon className="h-4 w-4" style={{ color: meta.color }} />
-                <span className="font-medium">{meta.label}</span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-
-        <TabsContent value="fuel" className="mt-0">
-          {loading ? <Loader label="Loading fuel data" /> : <FuelPanel logs={fuelLogs} onChanged={refresh} />}
-        </TabsContent>
-
-        {(["oil", "maintenance", "repairs"] as TabKey[]).map((k) => (
-          <TabsContent key={k} value={k} className="mt-0">
-            {loading ? (
-              <Loader label={`Loading ${TAB_META[k].label}`} />
-            ) : (
-              <ExpensePanel
-                tabKey={k}
-                expenses={expenses.filter((e) => e.bikeSubType === TAB_META[k].subType)}
-                onChanged={refresh}
-              />
-            )}
-          </TabsContent>
-        ))}
-      </Tabs>
-    </div>
-  );
-}
-
-/* ---------------- FUEL PANEL ---------------- */
-
-function FuelPanel({ logs, onChanged }: { logs: FuelLog[]; onChanged: () => void }) {
-  const cycles = useMemo(() => computeFuelCycles(logs), [logs]);
-  const latest = cycles[cycles.length - 1];
-  const fullTanks = logs.filter((l) => l.is_full_tank).length;
-
-  return (
-    <div className="space-y-5">
-      <FuelStatsCard latest={latest} fullTanks={fullTanks} totalLogs={logs.length} />
-      <FuelAddForm onAdded={onChanged} lastOdometer={logs[0]?.odometer} />
-      <FuelHistory logs={logs} onDeleted={onChanged} />
-    </div>
-  );
-}
-
-function FuelStatsCard({
-  latest,
-  fullTanks,
-  totalLogs,
-}: {
-  latest: ReturnType<typeof computeFuelCycles>[number] | undefined;
-  fullTanks: number;
-  totalLogs: number;
-}) {
-  if (!latest) {
+  if (loading) {
     return (
-      <section className="glass-card rounded-3xl p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-warning/15 text-warning">
-            <Info className="h-6 w-6" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold">Waiting for full tank to calculate average</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Add at least <span className="font-medium text-foreground">two “Full Tank”</span> entries with
-              odometer readings. We'll calculate km/L automatically between them.
-            </p>
-            <div className="mt-3 flex gap-3 text-xs text-muted-foreground">
-              <span><b className="text-foreground">{fullTanks}</b> full tanks</span>
-              <span>•</span>
-              <span><b className="text-foreground">{totalLogs}</b> total entries</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      <div className="animate-fade-in pb-10">
+        <PageHeader title="Vehicle" subtitle="Expenses & fuel average" />
+        <Loader label="Loading vehicle data" />
+      </div>
     );
   }
 
   return (
-    <section className="relative overflow-hidden rounded-3xl glass-card p-6">
-      <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
-      <div className="relative">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow">
-              <Gauge className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">Latest Average</p>
-              <p className="fin-number text-3xl font-semibold">
-                {latest.averageKmPerL.toFixed(2)}{" "}
-                <span className="text-base font-normal text-muted-foreground">km/L</span>
-              </p>
-            </div>
-          </div>
-          <div className="hidden items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs text-primary sm:flex">
-            <TrendingUp className="h-3 w-3" /> Live
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          <Stat label="Distance" value={`${latest.distance} km`} />
-          <Stat label="Fuel used" value={`${latest.totalLiters.toFixed(2)} L`} />
-          <Stat
-            label="Cost / km"
-            value={latest.costPerKm > 0 ? formatCurrency(latest.costPerKm) : "—"}
-          />
-        </div>
-
-        <p className="mt-4 text-[11px] text-muted-foreground">
-          Cycle: {formatDate(latest.fromDate, { day: "numeric", month: "short" })} →{" "}
-          {formatDate(latest.toDate, { day: "numeric", month: "short" })} ({latest.fromOdo} → {latest.toOdo} km)
-        </p>
-      </div>
-    </section>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-secondary/60 p-3">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="fin-number mt-1 truncate text-sm font-semibold">{value}</p>
+    <div className="animate-fade-in space-y-8 pb-10">
+      <PageHeader title="Vehicle" subtitle="Expenses & fuel average" />
+      <BikeExpensesSection expenses={expenses} onChanged={refresh} />
+      <FuelAverageSection logs={fuelLogs} onChanged={refresh} />
     </div>
   );
 }
 
-function FuelAddForm({ onAdded, lastOdometer }: { onAdded: () => void; lastOdometer?: number }) {
+/* =================== BIKE EXPENSES =================== */
+
+function BikeExpensesSection({ expenses, onChanged }: { expenses: Expense[]; onChanged: () => void }) {
+  const [filter, setFilter] = useState<BikeSubType | "all">("all");
+  const [open, setOpen] = useState(false);
+
+  const filtered = useMemo(
+    () => (filter === "all" ? expenses : expenses.filter((e) => e.bikeSubType === filter)),
+    [expenses, filter],
+  );
+
+  const total = filtered.reduce((s, e) => s + e.amount, 0);
+
+  return (
+    <section className="space-y-4">
+      <SectionHeader
+        icon={<Wallet className="h-4 w-4" />}
+        title="Bike Expenses"
+        subtitle="Track every rupee spent on your vehicle"
+      />
+
+      {/* Hero total */}
+      <div className="relative overflow-hidden rounded-3xl glass-card p-6">
+        <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
+        <div className="relative flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">
+              {filter === "all" ? "Total spent" : `Total ${labelOf(filter)}`}
+            </p>
+            <p className="fin-number mt-1 text-3xl font-semibold sm:text-4xl">
+              {formatCurrency(total)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">{filtered.length} entries</p>
+          </div>
+          <Button
+            onClick={() => setOpen((o) => !o)}
+            className="h-11 rounded-2xl bg-gradient-primary px-4 font-semibold text-primary-foreground shadow-glow hover:opacity-95"
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            {open ? "Close" : "Add"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Sub-category pills */}
+      <div className="flex flex-wrap gap-2">
+        <FilterPill active={filter === "all"} onClick={() => setFilter("all")}>
+          All
+        </FilterPill>
+        {BIKE_SUBTYPES.map((s) => (
+          <FilterPill
+            key={s.id}
+            active={filter === s.id}
+            color={s.color}
+            onClick={() => setFilter(s.id)}
+          >
+            {s.name}
+          </FilterPill>
+        ))}
+      </div>
+
+      {/* Inline form */}
+      {open && (
+        <ExpenseForm
+          defaultSubType={filter === "all" ? "petrol" : filter}
+          onSaved={() => {
+            setOpen(false);
+            onChanged();
+          }}
+        />
+      )}
+
+      {/* List */}
+      <ExpenseList expenses={filtered} onChanged={onChanged} />
+    </section>
+  );
+}
+
+function FilterPill({
+  active,
+  color,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  color?: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all",
+        active
+          ? "border-transparent bg-foreground text-background shadow-soft"
+          : "border-border bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground",
+      )}
+      style={active && color ? { background: color, color: "#fff" } : undefined}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ExpenseForm({
+  defaultSubType,
+  onSaved,
+}: {
+  defaultSubType: BikeSubType;
+  onSaved: () => void;
+}) {
+  const [subType, setSubType] = useState<BikeSubType>(defaultSubType);
+  const [date, setDate] = useState(todayISO());
+  const [amount, setAmount] = useState("");
+  const [title, setTitle] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0) return toast.error("Enter a valid amount");
+
+    setSaving(true);
+    const sub = BIKE_SUBTYPES.find((s) => s.id === subType)!;
+    const { error } = await addExpense({
+      title: title.trim() || sub.name,
+      amount: amt,
+      category: "bike",
+      type: "bike",
+      bikeSubType: subType,
+      date,
+      note: note.trim() || undefined,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save");
+      return;
+    }
+    toast.success(`${sub.name} expense added`);
+    setAmount("");
+    setTitle("");
+    setNote("");
+    onSaved();
+  };
+
+  return (
+    <form onSubmit={submit} className="glass-card animate-fade-in space-y-4 rounded-3xl p-5">
+      <p className="text-sm font-semibold">New bike expense</p>
+
+      {/* sub-type chips */}
+      <div className="flex flex-wrap gap-2">
+        {BIKE_SUBTYPES.map((s) => {
+          const active = subType === s.id;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setSubType(s.id)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
+                active
+                  ? "border-transparent text-white shadow-soft"
+                  : "border-border bg-secondary/50 text-muted-foreground hover:bg-secondary",
+              )}
+              style={active ? { background: s.color } : undefined}
+            >
+              <CategoryIcon name={s.icon} color={active ? "#fff" : s.color} background={false} size={14} />
+              {s.name}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Date">
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-11 rounded-xl border-border bg-secondary"
+          />
+        </Field>
+        <Field label="Amount">
+          <Input
+            type="number"
+            inputMode="decimal"
+            placeholder="Rs"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="h-11 rounded-xl border-border bg-secondary"
+          />
+        </Field>
+        <div className="col-span-2">
+          <Field label="Title (optional)">
+            <Input
+              placeholder="e.g. Shell V-Power"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="h-11 rounded-xl border-border bg-secondary"
+            />
+          </Field>
+        </div>
+        <div className="col-span-2">
+          <Field label="Note (optional)">
+            <Input
+              placeholder="Workshop, brand, etc."
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="h-11 rounded-xl border-border bg-secondary"
+            />
+          </Field>
+        </div>
+      </div>
+
+      <Button
+        type="submit"
+        disabled={saving}
+        className="h-12 w-full rounded-2xl bg-gradient-primary font-semibold text-primary-foreground shadow-glow hover:opacity-95"
+      >
+        <Plus className="mr-1 h-4 w-4" /> {saving ? "Saving…" : "Save expense"}
+      </Button>
+    </form>
+  );
+}
+
+function ExpenseList({ expenses, onChanged }: { expenses: Expense[]; onChanged: () => void }) {
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Delete this entry?")) return;
+    const { error } = await deleteExpense(id);
+    if (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete");
+      return;
+    }
+    toast.success("Deleted");
+    onChanged();
+  };
+
+  if (expenses.length === 0) {
+    return (
+      <div className="glass-card rounded-3xl p-10 text-center text-sm text-muted-foreground">
+        No bike expenses yet. Tap <b className="text-foreground">Add</b> to log your first one.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {[...expenses]
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .map((e) => {
+          const sub = BIKE_SUBTYPES.find((s) => s.id === e.bikeSubType);
+          return (
+            <div key={e.id} className="group glass-card flex items-center gap-3 rounded-2xl p-3.5 sm:p-4">
+              <CategoryIcon
+                name={sub?.icon || "Car"}
+                color={sub?.color || "#10b981"}
+                className="h-11 w-11"
+                size={20}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate font-medium">{e.title || sub?.name}</p>
+                  {sub && (
+                    <span
+                      className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                      style={{ background: `${sub.color}22`, color: sub.color }}
+                    >
+                      {sub.name}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {formatDate(e.date, { day: "numeric", month: "short", year: "numeric" })}
+                  {e.note ? ` • ${e.note}` : ""}
+                </p>
+              </div>
+              <p className="fin-number whitespace-nowrap font-semibold">-{formatCurrency(e.amount)}</p>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleDelete(e.id)}
+                className="h-8 w-8 text-muted-foreground opacity-100 transition-opacity hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100"
+                aria-label="Delete"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          );
+        })}
+    </div>
+  );
+}
+
+/* =================== FUEL AVERAGE CALCULATOR =================== */
+
+function FuelAverageSection({ logs, onChanged }: { logs: FuelLog[]; onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
+  const cycles = useMemo(() => computeFuelCycles(logs), [logs]);
+  const latest = cycles[cycles.length - 1];
+  const fullTanks = logs.filter((l) => l.is_full_tank).length;
+
+  const overallAvg =
+    cycles.length > 0
+      ? cycles.reduce((s, c) => s + c.averageKmPerL, 0) / cycles.length
+      : 0;
+
+  return (
+    <section className="space-y-4">
+      <SectionHeader
+        icon={<Sparkles className="h-4 w-4" />}
+        title="Fuel Average Calculator"
+        subtitle="Auto-calculated between full tank entries"
+      />
+
+      {/* Hero stats */}
+      {latest ? (
+        <div className="relative overflow-hidden rounded-3xl glass-card p-6">
+          <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
+          <div className="relative">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow">
+                  <Gauge className="h-6 w-6 text-primary-foreground" />
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground">Latest Average</p>
+                  <p className="fin-number text-3xl font-semibold sm:text-4xl">
+                    {latest.averageKmPerL.toFixed(2)}{" "}
+                    <span className="text-base font-normal text-muted-foreground">km/L</span>
+                  </p>
+                </div>
+              </div>
+              <div className="hidden items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs text-primary sm:flex">
+                <TrendingUp className="h-3 w-3" /> Live
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <Stat label="Distance" value={`${latest.distance} km`} />
+              <Stat label="Fuel used" value={`${latest.totalLiters.toFixed(2)} L`} />
+              <Stat label="Overall avg" value={`${overallAvg.toFixed(2)} km/L`} />
+            </div>
+
+            <p className="mt-4 text-[11px] text-muted-foreground">
+              Cycle: {formatDate(latest.fromDate, { day: "numeric", month: "short" })} →{" "}
+              {formatDate(latest.toDate, { day: "numeric", month: "short" })} ({latest.fromOdo} → {latest.toOdo} km)
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="glass-card rounded-3xl p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-warning/15 text-warning">
+              <Info className="h-6 w-6" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold">Waiting for full tank to calculate average</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Add at least <span className="font-medium text-foreground">two “Full Tank”</span> entries with
+                odometer readings. Average will be calculated automatically.
+              </p>
+              <div className="mt-3 flex gap-3 text-xs text-muted-foreground">
+                <span>
+                  <b className="text-foreground">{fullTanks}</b> full tanks
+                </span>
+                <span>•</span>
+                <span>
+                  <b className="text-foreground">{logs.length}</b> total entries
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end">
+        <Button
+          onClick={() => setOpen((o) => !o)}
+          variant="outline"
+          className="h-10 rounded-2xl"
+        >
+          <Plus className="mr-1 h-4 w-4" />
+          {open ? "Close" : "Log fuel"}
+        </Button>
+      </div>
+
+      {open && (
+        <FuelForm
+          lastOdometer={logs[0]?.odometer}
+          onSaved={() => {
+            setOpen(false);
+            onChanged();
+          }}
+        />
+      )}
+
+      <FuelHistory logs={logs} onDeleted={onChanged} />
+    </section>
+  );
+}
+
+function FuelForm({ lastOdometer, onSaved }: { lastOdometer?: number; onSaved: () => void }) {
   const [date, setDate] = useState(todayISO());
   const [odometer, setOdometer] = useState("");
   const [liters, setLiters] = useState("");
-  const [cost, setCost] = useState("");
   const [isFull, setIsFull] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -226,7 +503,7 @@ function FuelAddForm({ onAdded, lastOdometer }: { onAdded: () => void; lastOdome
       date,
       odometer: odo,
       fuel_liters: lit,
-      fuel_cost: cost ? parseFloat(cost) : null,
+      fuel_cost: null,
       is_full_tank: isFull,
     });
     setSaving(false);
@@ -238,14 +515,13 @@ function FuelAddForm({ onAdded, lastOdometer }: { onAdded: () => void; lastOdome
     toast.success(isFull ? "Full tank logged" : "Fuel entry saved");
     setOdometer("");
     setLiters("");
-    setCost("");
-    onAdded();
+    onSaved();
   };
 
   return (
-    <form onSubmit={submit} className="glass-card space-y-4 rounded-3xl p-5">
+    <form onSubmit={submit} className="glass-card animate-fade-in space-y-4 rounded-3xl p-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold">Log fuel</p>
+        <p className="text-sm font-semibold">Log fuel reading</p>
         <label className="flex cursor-pointer items-center gap-2 rounded-full bg-secondary/60 px-3 py-1.5">
           <BadgeCheck
             className={cn("h-4 w-4 transition-colors", isFull ? "text-primary" : "text-muted-foreground")}
@@ -274,28 +550,25 @@ function FuelAddForm({ onAdded, lastOdometer }: { onAdded: () => void; lastOdome
             className="h-11 rounded-xl border-border bg-secondary"
           />
         </Field>
-        <Field label="Fuel (liters)">
-          <Input
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            placeholder="0.00"
-            value={liters}
-            onChange={(e) => setLiters(e.target.value)}
-            className="h-11 rounded-xl border-border bg-secondary"
-          />
-        </Field>
-        <Field label="Cost (optional)">
-          <Input
-            type="number"
-            inputMode="decimal"
-            placeholder="Rs"
-            value={cost}
-            onChange={(e) => setCost(e.target.value)}
-            className="h-11 rounded-xl border-border bg-secondary"
-          />
-        </Field>
+        <div className="col-span-2">
+          <Field label="Fuel (liters)">
+            <Input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              placeholder="0.00"
+              value={liters}
+              onChange={(e) => setLiters(e.target.value)}
+              className="h-11 rounded-xl border-border bg-secondary"
+            />
+          </Field>
+        </div>
       </div>
+
+      <p className="text-[11px] text-muted-foreground">
+        Tip: Toggle <b className="text-foreground">Full tank</b> ON every time you fill it completely. Average is
+        calculated between two full tanks.
+      </p>
 
       <Button
         type="submit"
@@ -305,15 +578,6 @@ function FuelAddForm({ onAdded, lastOdometer }: { onAdded: () => void; lastOdome
         <Plus className="mr-1 h-4 w-4" /> {saving ? "Saving…" : "Add fuel entry"}
       </Button>
     </form>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {children}
-    </div>
   );
 }
 
@@ -329,241 +593,97 @@ function FuelHistory({ logs, onDeleted }: { logs: FuelLog[]; onDeleted: () => vo
     onDeleted();
   };
 
-  return (
-    <section>
-      <h3 className="mb-3 px-1 text-xs uppercase tracking-widest text-muted-foreground">Fuel history</h3>
-      {logs.length === 0 ? (
-        <div className="glass-card rounded-3xl p-10 text-center text-muted-foreground">
-          No fuel entries yet. Add your first one above.
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {logs.map((log) => (
-            <div key={log.id} className="group glass-card flex items-center gap-3 rounded-2xl p-4">
-              <div
-                className={cn(
-                  "flex h-11 w-11 items-center justify-center rounded-xl",
-                  log.is_full_tank ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground",
-                )}
-              >
-                <Fuel className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate font-medium">{log.fuel_liters.toFixed(2)} L</p>
-                  {log.is_full_tank && (
-                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                      FULL TANK
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {formatDate(log.date, { day: "numeric", month: "short", year: "numeric" })} • {log.odometer} km
-                </p>
-              </div>
-              <div className="text-right">
-                {log.fuel_cost ? (
-                  <p className="fin-number font-semibold">{formatCurrency(log.fuel_cost)}</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">—</p>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleDelete(log.id)}
-                className="h-8 w-8 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-                aria-label="Delete"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-/* ---------------- OIL / MAINTENANCE / REPAIRS PANEL ---------------- */
-
-function ExpensePanel({
-  tabKey,
-  expenses,
-  onChanged,
-}: {
-  tabKey: TabKey;
-  expenses: Expense[];
-  onChanged: () => void;
-}) {
-  const meta = TAB_META[tabKey];
-  const subType = meta.subType!;
-  const [date, setDate] = useState(todayISO());
-  const [amount, setAmount] = useState("");
-  const [title, setTitle] = useState("");
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const total = expenses.reduce((sum, e) => sum + e.amount, 0);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amt = parseFloat(amount);
-    if (!amt || amt <= 0) return toast.error("Enter a valid amount");
-
-    setSaving(true);
-    const { error } = await addExpense({
-      title: title.trim() || meta.label,
-      amount: amt,
-      category: "bike",
-      type: "bike",
-      bikeSubType: subType,
-      date,
-      note: note.trim() || undefined,
-    });
-    setSaving(false);
-    if (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save");
-      return;
-    }
-    toast.success(`${meta.label} entry added`);
-    setAmount("");
-    setTitle("");
-    setNote("");
-    onChanged();
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Delete this entry?")) return;
-    const { error } = await deleteExpense(id);
-    if (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete");
-      return;
-    }
-    toast.success("Deleted");
-    onChanged();
-  };
-
-  const Icon = meta.icon;
+  if (logs.length === 0) {
+    return (
+      <div className="glass-card rounded-3xl p-10 text-center text-sm text-muted-foreground">
+        No fuel entries yet.
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-5">
-      <section className="relative overflow-hidden rounded-3xl glass-card p-6">
-        <div
-          className="absolute -right-16 -top-16 h-56 w-56 rounded-full blur-3xl pointer-events-none"
-          style={{ background: `${meta.color}33` }}
-        />
-        <div className="relative flex items-center gap-4">
+    <div className="space-y-2">
+      <h3 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">Fuel history</h3>
+      {logs.map((log) => (
+        <div key={log.id} className="group glass-card flex items-center gap-3 rounded-2xl p-3.5 sm:p-4">
           <div
-            className="flex h-14 w-14 items-center justify-center rounded-2xl"
-            style={{ background: `${meta.color}22`, color: meta.color }}
+            className={cn(
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+              log.is_full_tank ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground",
+            )}
           >
-            <Icon className="h-7 w-7" />
+            <Fuel className="h-5 w-5" />
           </div>
-          <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Total {meta.label}</p>
-            <p className="mt-1 fin-number text-3xl font-semibold">{formatCurrency(total)}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{expenses.length} entries</p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="truncate font-medium">{Number(log.fuel_liters).toFixed(2)} L</p>
+              {log.is_full_tank && (
+                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                  FULL TANK
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {formatDate(log.date, { day: "numeric", month: "short", year: "numeric" })} • {log.odometer} km
+            </p>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDelete(log.id)}
+            className="h-8 w-8 text-muted-foreground opacity-100 transition-opacity hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100"
+            aria-label="Delete"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
-      </section>
-
-      <form onSubmit={submit} className="glass-card space-y-4 rounded-3xl p-5">
-        <p className="text-sm font-semibold">Add {meta.label.toLowerCase()} entry</p>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Date">
-            <Input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-11 rounded-xl border-border bg-secondary"
-            />
-          </Field>
-          <Field label="Amount">
-            <Input
-              type="number"
-              inputMode="decimal"
-              placeholder="Rs"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="h-11 rounded-xl border-border bg-secondary"
-            />
-          </Field>
-          <div className="col-span-2">
-            <Field label="Title (optional)">
-              <Input
-                placeholder={meta.label}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="h-11 rounded-xl border-border bg-secondary"
-              />
-            </Field>
-          </div>
-          <div className="col-span-2">
-            <Field label="Note (optional)">
-              <Input
-                placeholder="Workshop, brand, etc."
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                className="h-11 rounded-xl border-border bg-secondary"
-              />
-            </Field>
-          </div>
-        </div>
-        <Button
-          type="submit"
-          disabled={saving}
-          className="h-12 w-full rounded-2xl bg-gradient-primary font-semibold text-primary-foreground shadow-glow hover:opacity-95"
-        >
-          <Plus className="mr-1 h-4 w-4" /> {saving ? "Saving…" : `Add ${meta.label}`}
-        </Button>
-      </form>
-
-      <section>
-        <h3 className="mb-3 px-1 text-xs uppercase tracking-widest text-muted-foreground">History</h3>
-        {expenses.length === 0 ? (
-          <div className="glass-card rounded-3xl p-10 text-center text-muted-foreground">
-            No {meta.label.toLowerCase()} entries yet.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {[...expenses]
-              .sort((a, b) => b.date.localeCompare(a.date))
-              .map((e) => {
-                const sub = BIKE_SUBTYPES.find((s) => s.id === e.bikeSubType);
-                return (
-                  <div key={e.id} className="group glass-card flex items-center gap-3 rounded-2xl p-4">
-                    <CategoryIcon
-                      name={sub?.icon || "Car"}
-                      color={sub?.color || meta.color}
-                      className="h-11 w-11"
-                      size={20}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{e.title || meta.label}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(e.date, { day: "numeric", month: "short", year: "numeric" })}
-                        {e.note ? ` • ${e.note}` : ""}
-                      </p>
-                    </div>
-                    <p className="fin-number font-semibold">-{formatCurrency(e.amount)}</p>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(e.id)}
-                      className="h-8 w-8 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-      </section>
+      ))}
     </div>
   );
 }
 
-// suppress unused warning for Car import
-void Car;
+/* =================== SHARED =================== */
+
+function SectionHeader({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        {icon}
+      </div>
+      <div>
+        <h2 className="text-base font-semibold leading-tight sm:text-lg">{title}</h2>
+        <p className="text-[11px] text-muted-foreground sm:text-xs">{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-secondary/60 p-3">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="fin-number mt-1 truncate text-sm font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function labelOf(sub: BikeSubType) {
+  return BIKE_SUBTYPES.find((s) => s.id === sub)?.name ?? sub;
+}
