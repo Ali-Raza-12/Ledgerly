@@ -15,12 +15,13 @@ import { toast } from "sonner";
 export function Dashboard() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [budget, setBudgetAmount] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchExpenses = async () => {
       const { data, error } = await getExpenses();
       if (error) {
-        toast.error("Failed to fetch expenses");
+        toast.error(error instanceof Error ? error.message : "Failed to fetch expenses");
         return;
       } 
       setExpenses(data || []);
@@ -40,6 +41,21 @@ export function Dashboard() {
 
   const currentMonth = monthKey(todayISO());
   const prevMonth = previousMonth(currentMonth);
+
+  useEffect(() => {
+    const fetchBudget = async () => {
+      try {
+        const value = await getBudget(currentMonth);
+        setBudgetAmount(value);
+      } catch (error) {
+        console.error("Failed to fetch budget:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to fetch budget");
+        setBudgetAmount(null);
+      }
+    };
+
+    fetchBudget();
+  }, [currentMonth]);
 
   const data = useMemo(() => {
     const monthExp = expenses.filter((e) => monthKey(e.date) === currentMonth);
@@ -61,7 +77,6 @@ export function Dashboard() {
     return { total, prevTotal, todayTotal, cats, top, change, monthExp };
   }, [expenses, categories, currentMonth, prevMonth]);
 
-  const budget = getBudget(currentMonth);
   const budgetUsed = budget ? Math.min(100, (data.total / budget) * 100) : 0;
   const overBudget = budget != null && data.total > budget;
 

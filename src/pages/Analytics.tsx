@@ -16,7 +16,7 @@ export function Analytics() {
     const fetchExpenses = async () => {
       const { data, error } = await getExpenses();
       if (error) {
-        toast.error("Failed to fetch expenses");
+        toast.error(error instanceof Error ? error.message : "Failed to fetch expenses");
         return;
       }
       setExpenses(data || []);

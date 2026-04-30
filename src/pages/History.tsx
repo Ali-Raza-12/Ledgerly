@@ -34,7 +34,7 @@ export function History() {
 
       if (expenseError) {
         console.error(expenseError);
-        toast.error("Failed to load expenses");
+        toast.error(expenseError instanceof Error ? expenseError.message : "Failed to load expenses");
       }
 
       if (categoryError) {

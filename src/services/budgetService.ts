@@ -1,12 +1,11 @@
 import type { MonthlyBudget } from "@/types/expense";
+import { requireUserId, getBudgetStorageKey } from "./userScope";
 
-const STORAGE_KEY = "monthly-budgets";
-
-const readBudgets = (): MonthlyBudget[] => {
+const readBudgets = (userId: string): MonthlyBudget[] => {
   if (typeof window === "undefined") return [];
 
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(getBudgetStorageKey(userId));
     if (!raw) return [];
 
     const parsed = JSON.parse(raw);
@@ -21,19 +20,25 @@ const readBudgets = (): MonthlyBudget[] => {
   }
 };
 
-const writeBudgets = (budgets: MonthlyBudget[]) => {
+const writeBudgets = (userId: string, budgets: MonthlyBudget[]) => {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(budgets));
+  window.localStorage.setItem(getBudgetStorageKey(userId), JSON.stringify(budgets));
 };
 
-export const getBudgets = () => readBudgets();
+export const getBudgets = async () => {
+  const userId = await requireUserId();
+  return readBudgets(userId);
+};
 
-export const getBudget = (month: string) =>
-  readBudgets().find((budget) => budget.month === month)?.amount ?? null;
+export const getBudget = async (month: string) => {
+  const userId = await requireUserId();
+  return readBudgets(userId).find((budget) => budget.month === month)?.amount ?? null;
+};
 
-export const setBudget = (budget: MonthlyBudget) => {
-  const budgets = readBudgets().filter((item) => item.month !== budget.month);
+export const setBudget = async (budget: MonthlyBudget) => {
+  const userId = await requireUserId();
+  const budgets = readBudgets(userId).filter((item) => item.month !== budget.month);
   budgets.push(budget);
-  writeBudgets(budgets);
+  writeBudgets(userId, budgets);
   return budget;
 };

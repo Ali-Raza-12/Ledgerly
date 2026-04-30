@@ -52,7 +52,7 @@ export function AddLedgerDialog({
   const addEntry = async (entry: LedgerEntryInput) => {
     const { data, error } = await addLedgerEntry(entry);
     if (error) {
-      toast.error("Failed to save entry");
+      toast.error(error instanceof Error ? error.message : "Failed to save entry");
       console.error(error);
       return false;
     }

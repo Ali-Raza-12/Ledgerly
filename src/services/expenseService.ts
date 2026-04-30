@@ -1,6 +1,7 @@
 import { monthKey } from "@/lib/format";
 import type { Expense, ExpenseInput } from "@/types/expense";
 import { supabase } from "../lib/supabaseClient";
+import { mapUserScopeError, requireUserId } from "./userScope";
 
 interface ExpenseRow {
   id: string;
@@ -31,33 +32,63 @@ const normalizeExpense = (expense: ExpenseRow): Expense => ({
 });
 
 export const getExpenses = async () => {
-  const { data, error } = await supabase
-    .from("expenses")
-    .select("*")
-    .order("date", { ascending: false });
+  try {
+    const userId = await requireUserId();
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("*")
+      .eq("user_id", userId)
+      .order("date", { ascending: false });
 
-  return { data: data?.map((expense) => normalizeExpense(expense as ExpenseRow)) ?? null, error };
+    return {
+      data: data?.map((expense) => normalizeExpense(expense as ExpenseRow)) ?? null,
+      error: mapUserScopeError(error),
+    };
+  } catch (error) {
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error("Failed to load expenses."),
+    };
+  }
 };
 
 export const addExpense = async (expense: ExpenseInput) => {
-  const payload = {
-    ...expense,
-    month: expense.month ?? monthKey(expense.date),
-  };
+  try {
+    const userId = await requireUserId();
+    const payload = {
+      ...expense,
+      month: expense.month ?? monthKey(expense.date),
+      user_id: userId,
+    };
 
-  const { data, error } = await supabase
-    .from("expenses")
-    .insert([payload])
-    .select();
+    const { data, error } = await supabase
+      .from("expenses")
+      .insert([payload])
+      .select();
 
-  return { data: data?.map((item) => normalizeExpense(item as ExpenseRow)) ?? null, error };
+    return {
+      data: data?.map((item) => normalizeExpense(item as ExpenseRow)) ?? null,
+      error: mapUserScopeError(error),
+    };
+  } catch (error) {
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error("Failed to save expense."),
+    };
+  }
 };
 
 export const deleteExpense = async (id: string) => {
-  const { error } = await supabase
-    .from("expenses")
-    .delete()
-    .eq("id", id);
+  try {
+    const userId = await requireUserId();
+    const { error } = await supabase
+      .from("expenses")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
 
-  return { error };
+    return { error: mapUserScopeError(error) };
+  } catch (error) {
+    return { error: error instanceof Error ? error : new Error("Failed to delete expense.") };
+  }
 };

@@ -89,6 +89,22 @@ The app currently works with these main domains:
 
 Ledger rows are normalized in the client so database fields like `person_name` and `entry_type` map cleanly into app-friendly types.
 
+## User Data Isolation
+
+To keep each user's finance data private, run the SQL migration in:
+
+```text
+supabase/migrations/20260430_user_data_isolation.sql
+```
+
+This adds `user_id` ownership and row-level security for:
+
+- `expenses`
+- `incomes`
+- `ledger_entries`
+
+Without that migration, authenticated users can still end up reading shared table data.
+
 ## Development Notes
 
 - Date handling is normalized for local calendar behavior to avoid timezone drift.

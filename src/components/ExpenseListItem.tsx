@@ -37,7 +37,7 @@ export function ExpenseListItem({ expense, onDelete }: { expense: Expense; onDel
 
     const { error } = await deleteExpense(expense.id);
     if (error) {
-      toast.error("Failed to delete expense");
+      toast.error(error instanceof Error ? error.message : "Failed to delete expense");
       console.error(error);
       return;
     }

@@ -1,5 +1,6 @@
 import type { LedgerEntry, LedgerEntryInput } from "@/types/ledger";
 import { supabase } from "../lib/supabaseClient";
+import { mapUserScopeError, requireUserId } from "./userScope";
 
 interface LedgerEntryRow {
   id: string;
@@ -27,37 +28,67 @@ const normalizeLedgerEntry = (entry: LedgerEntryRow): LedgerEntry => ({
 });
 
 export const getLedger = async () => {
-  const { data, error } = await supabase
-    .from("ledger_entries")
-    .select("*")
-    .order("date", { ascending: false });
+  try {
+    const userId = await requireUserId();
+    const { data, error } = await supabase
+      .from("ledger_entries")
+      .select("*")
+      .eq("user_id", userId)
+      .order("date", { ascending: false });
 
-  return { data: data?.map((entry) => normalizeLedgerEntry(entry as LedgerEntryRow)) ?? null, error };
+    return {
+      data: data?.map((entry) => normalizeLedgerEntry(entry as LedgerEntryRow)) ?? null,
+      error: mapUserScopeError(error),
+    };
+  } catch (error) {
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error("Failed to load ledger entries."),
+    };
+  }
 };
 
 export const addLedgerEntry = async (entry: LedgerEntryInput) => {
-  const payload = {
-    person_name: entry.person,
-    direction: entry.direction,
-    amount: entry.amount,
-    entry_type: entry.entryType,
-    date: entry.date,
-    note: entry.note,
-  };
+  try {
+    const userId = await requireUserId();
+    const payload = {
+      person_name: entry.person,
+      direction: entry.direction,
+      amount: entry.amount,
+      entry_type: entry.entryType,
+      date: entry.date,
+      note: entry.note,
+      user_id: userId,
+    };
 
-  const { data, error } = await supabase
-    .from("ledger_entries")
-    .insert([payload])
-    .select();
+    const { data, error } = await supabase
+      .from("ledger_entries")
+      .insert([payload])
+      .select();
 
-  return { data: data?.map((item) => normalizeLedgerEntry(item as LedgerEntryRow)) ?? null, error };
+    return {
+      data: data?.map((item) => normalizeLedgerEntry(item as LedgerEntryRow)) ?? null,
+      error: mapUserScopeError(error),
+    };
+  } catch (error) {
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error("Failed to save ledger entry."),
+    };
+  }
 };
 
 export const deleteLedgerEntry = async (id: string) => {
-  const { error } = await supabase
-    .from("ledger_entries")
-    .delete()
-    .eq("id", id);
+  try {
+    const userId = await requireUserId();
+    const { error } = await supabase
+      .from("ledger_entries")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
 
-  return { error };
+    return { error: mapUserScopeError(error) };
+  } catch (error) {
+    return { error: error instanceof Error ? error : new Error("Failed to delete ledger entry.") };
+  }
 };

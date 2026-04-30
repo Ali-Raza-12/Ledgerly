@@ -13,5 +13,6 @@ export const getCashflowData = async () => {
     expenses: expenses.data || [],
     incomes: incomes.data || [],
     ledger: ledger.data || [],
+    error: expenses.error || incomes.error || ledger.error || null,
   };
 };

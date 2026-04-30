@@ -70,7 +70,10 @@ export function Balance() {
   // Fetch data from Supabase
   useEffect(() => {
     const fetchData = async () => {
-      const { expenses: exp, incomes: inc, ledger } = await getCashflowData();
+      const { expenses: exp, incomes: inc, ledger, error } = await getCashflowData();
+      if (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to load cashflow data");
+      }
       setExpenses(exp);
       setIncomes(inc);
       setLedgerEntries(ledger);
@@ -195,7 +198,7 @@ export function Balance() {
       toast.success("Transaction deleted");
     } catch (err) {
       console.error("Error deleting transaction:", err);
-      toast.error("Failed to delete transaction");
+      toast.error(err instanceof Error ? err.message : "Failed to delete transaction");
     }
   };
 

@@ -66,7 +66,7 @@ export function Lending() {
 
       if (error) {
         console.error(error);
-        toast.error("Failed to load lending data");
+        toast.error(error instanceof Error ? error.message : "Failed to load lending data");
         setLoading(false);
         return;
       }
@@ -109,7 +109,7 @@ export function Lending() {
       toast.success("Entry deleted");
     } catch (err) {
       console.error("Error deleting entry:", err);
-      toast.error("Failed to delete entry");
+      toast.error(err instanceof Error ? err.message : "Failed to delete entry");
     }
   };
 

@@ -79,7 +79,7 @@ export function AddExpense() {
     const { data, error } = await addExpense(expenseData);
 
     if (error) {
-      toast.error("Failed to add expense");
+      toast.error(error instanceof Error ? error.message : "Failed to add expense");
       console.error(error);
       return;
     }

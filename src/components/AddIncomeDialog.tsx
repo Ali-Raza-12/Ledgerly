@@ -66,7 +66,7 @@ export function AddIncomeDialog({ trigger, defaultMonth, onSuccess }: Props) {
     const { data, error } = await addIncome(payload);
 
     if (error) {
-      toast.error("Failed to add income");
+      toast.error(error instanceof Error ? error.message : "Failed to add income");
       console.error(error);
       return;
     }
