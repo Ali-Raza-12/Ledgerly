@@ -50,9 +50,9 @@ export const getIncomes = async () => {
 export const addIncome = async (income: IncomeInput) => {
   try {
     const userId = await requireUserId();
+    const { month, ...incomeWithoutMonth } = income as any;
     const payload = {
-      ...income,
-      month: income.month ?? monthKey(income.date),
+      ...incomeWithoutMonth,
       user_id: userId,
     };
 
