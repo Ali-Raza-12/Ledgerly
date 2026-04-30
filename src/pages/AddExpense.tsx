@@ -38,7 +38,8 @@ export function AddExpense() {
         return;
       }
 
-      const nextCategories = data || [];
+      // Vehicle expenses are managed exclusively from the Vehicle page
+      const nextCategories = (data || []).filter((c: Category) => c.type !== "bike");
       setCategories(nextCategories);
       setCategoryId((current) => {
         if (current && nextCategories.some((category) => category.id === current)) {
