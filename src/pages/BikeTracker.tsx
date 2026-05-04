@@ -1,91 +1,87 @@
 import { useEffect, useMemo, useState } from "react";
-import { PageHeader } from "@/components/PageHeader";
-import { BIKE_SUBTYPES } from "@/lib/categories";
-import { CategoryIcon } from "@/components/CategoryIcon";
-import { formatCurrency, formatDate, todayISO } from "@/lib/format";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Loader } from "@/components/Loader";
+import { Link } from "react-router-dom";
 import {
+  Car,
   Fuel,
-  Plus,
-  Trash2,
   Gauge,
-  TrendingUp,
-  BadgeCheck,
-  Info,
-  Wallet,
+  History,
+  Plus,
+  Route,
   Sparkles,
+  Waves,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { getExpenses, addExpense, deleteExpense } from "@/services/expenseService";
-import { addFuelLog, computeFuelCycles, deleteFuelLog, getFuelLogs } from "@/services/fuelService";
-import type { Expense, BikeSubType } from "@/types/expense";
+import { PageHeader } from "@/components/PageHeader";
+import { AddFuelLogDialog } from "@/components/AddFuelLogDialog";
+import { Button } from "@/components/ui/button";
+import { Loader } from "@/components/Loader";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CategoryIcon } from "@/components/CategoryIcon";
+import { BIKE_SUBTYPES } from "@/lib/categories";
+import { buildFuelCycles } from "@/lib/fuel";
+import { formatCurrency, formatDate, monthKey, monthLabel, todayISO } from "@/lib/format";
+import { getExpenses } from "@/services/expenseService";
+import { getFuelLogs } from "@/services/fuelLogService";
+import type { Expense } from "@/types/expense";
 import type { FuelLog } from "@/types/fuel";
+import { cn } from "@/lib/utils";
+
+const numberFormatter = new Intl.NumberFormat("en-PK");
+
+const formatDistance = (value: number) => `${numberFormatter.format(Math.round(value))} km`;
+const formatLitres = (value: number) => `${value.toFixed(1)} L`;
+const formatAverage = (value: number) => `${value.toFixed(1)} km/L`;
 
 export function BikeTracker() {
   const [loading, setLoading] = useState(true);
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-
-  const refresh = async () => {
-    setLoading(true);
-    const [fuelRes, expRes] = await Promise.all([getFuelLogs(), getExpenses()]);
-    if (fuelRes.error) {
-      const msg = fuelRes.error instanceof Error ? fuelRes.error.message : "Failed to load fuel logs";
-      if (/vehicle_fuel_logs/i.test(msg) || /relation .* does not exist/i.test(msg)) {
-        toast.error("Fuel tracking table missing — please run the migration.");
-      } else {
-        toast.error(msg);
-      }
-    } else {
-      setFuelLogs(fuelRes.data || []);
-    }
-    if (expRes.error) {
-      toast.error(expRes.error instanceof Error ? expRes.error.message : "Failed to load expenses");
-    } else {
-      setExpenses((expRes.data || []).filter((e) => e.type === "bike"));
-    }
-    setLoading(false);
-  };
+  const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [month, setMonth] = useState<string>(monthKey(todayISO()));
+  const [tab, setTab] = useState("timeline");
 
   useEffect(() => {
-    refresh();
+    const fetchData = async () => {
+      const [{ data: expenseData, error: expenseError }, { data: fuelData, error: fuelError }] =
+        await Promise.all([getExpenses(), getFuelLogs()]);
+
+      if (expenseError) {
+        toast.error(expenseError instanceof Error ? expenseError.message : "Failed to fetch expenses");
+      }
+
+      if (fuelError) {
+        toast.error(fuelError instanceof Error ? fuelError.message : "Failed to fetch fuel history");
+      }
+
+      setExpenses(expenseData || []);
+      setFuelLogs(fuelData || []);
+      setLoading(false);
+    };
+
+    fetchData();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="animate-fade-in pb-10">
-        <PageHeader title="Vehicle" subtitle="Expenses & fuel average" />
-        <Loader label="Loading vehicle data" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="animate-fade-in space-y-8 pb-10">
-      <PageHeader title="Vehicle" subtitle="Expenses & fuel average" />
-      <BikeExpensesSection expenses={expenses} onChanged={refresh} />
-      <FuelAverageSection logs={fuelLogs} onChanged={refresh} />
-    </div>
-  );
-}
-
-/* =================== BIKE EXPENSES =================== */
-
-function BikeExpensesSection({ expenses, onChanged }: { expenses: Expense[]; onChanged: () => void }) {
-  const [filter, setFilter] = useState<BikeSubType | "all">("all");
-  const [open, setOpen] = useState(false);
-
-  const filtered = useMemo(
-    () => (filter === "all" ? expenses : expenses.filter((e) => e.bikeSubType === filter)),
-    [expenses, filter],
+  const months = useMemo(
+    () => [...new Set(expenses.map((expense) => monthKey(expense.date)).filter(Boolean))].sort().reverse(),
+    [expenses],
   );
 
-  const total = filtered.reduce((s, e) => s + e.amount, 0);
+  const timelineData = useMemo(() => {
+    const bikeExpenses = expenses.filter((expense) => expense.type === "bike");
+    const monthExpenses = bikeExpenses.filter((expense) => monthKey(expense.date) === month);
+    const total = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const bySub = new Map<string, number>();
+
+    for (const expense of monthExpenses) {
+      const key = expense.bikeSubType || "other";
+      bySub.set(key, (bySub.get(key) || 0) + expense.amount);
+    }
+
+    const timeline = [...monthExpenses].sort((a, b) => b.date.localeCompare(a.date));
+    return { total, bySub, timeline };
+  }, [expenses, month]);
 
   return (
     <section className="space-y-4">
