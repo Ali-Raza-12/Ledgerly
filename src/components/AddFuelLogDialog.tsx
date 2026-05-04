@@ -193,7 +193,6 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
               </span>
             </span>
           </button>
-          </button>
 
           {/* Odometer — primary input, full width */}
           <div className="space-y-2">
