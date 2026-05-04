@@ -109,7 +109,7 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent
-        className="glass-card max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto rounded-3xl border-border p-0"
+        className="app-scrollbar glass-card max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto rounded-3xl border-border p-0"
       >
         {/* Hero header */}
         <div className="relative overflow-hidden rounded-t-3xl border-b border-border/60 bg-gradient-to-br from-primary/15 via-background to-accent/10 p-5 sm:p-6">

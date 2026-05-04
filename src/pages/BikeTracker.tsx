@@ -295,13 +295,13 @@ export function BikeTracker() {
             />
             <MetricCard
               icon={<Sparkles className="h-4 w-4" />}
-              label="Best cycle"
+              label="Best mileage"
               value={fuelData.bestCycle ? formatAverage(fuelData.bestCycle.averageKmPerLitre) : "Not ready"}
               tone="accent"
             />
             <MetricCard
               icon={<Route className="h-4 w-4" />}
-              label="Current cycle"
+              label="Current tracking"
               value={fuelData.activeCycle ? formatDistance(fuelData.activeCycle.distanceKm) : "Waiting"}
               sub={
                 fuelData.activeCycle
@@ -312,7 +312,7 @@ export function BikeTracker() {
             />
             <MetricCard
               icon={<History className="h-4 w-4" />}
-              label="Saved logs"
+              label="Fuel entries"
               value={String(fuelData.totalLogs)}
               sub={`${fuelData.cycles.length} completed cycles`}
               tone="accent"
