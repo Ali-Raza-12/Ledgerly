@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { addFuelLog, getFuelLogs } from "@/services/fuelLogService";
 import { todayISO } from "@/lib/format";
 import type { FuelLog, FuelLogInput } from "@/types/fuel";
-import { Check, Fuel, Gauge, Calendar as CalendarIcon, StickyNote, TrendingUp, Sparkles } from "lucide-react";
+import { Check, Fuel, Gauge, Calendar as CalendarIcon, StickyNote, TrendingUp, Sparkles, Droplet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -121,43 +120,78 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
               <Fuel className="h-6 w-6 text-primary-foreground" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-lg font-semibold tracking-tight sm:text-xl">Log fuel reading</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+              <DialogTitle className="text-lg font-semibold tracking-tight sm:text-xl">Log fuel reading</DialogTitle>
+              <DialogDescription className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
                 Track every fill to unlock accurate mileage and cost insights.
-              </p>
+              </DialogDescription>
             </div>
           </div>
         </div>
 
         <form onSubmit={submit} className="space-y-5 p-5 sm:p-6">
-          {/* Full tank toggle */}
+          {/* Full tank toggle — premium custom switch */}
           <button
             type="button"
+            role="switch"
+            aria-checked={isFullTank}
+            aria-label="Mark as full tank fill"
             onClick={() => setIsFullTank((v) => !v)}
             className={cn(
-              "group flex w-full items-center justify-between rounded-2xl border p-4 text-left transition-all",
+              "group flex w-full items-center justify-between gap-3 rounded-2xl border p-4 text-left transition-all duration-300",
               isFullTank
-                ? "border-primary/40 bg-primary/10 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]"
-                : "border-border bg-secondary/40 hover:border-primary/30",
+                ? "border-primary/40 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent shadow-[0_0_0_1px_hsl(var(--primary)/0.15),0_8px_24px_-12px_hsl(var(--primary)/0.4)]"
+                : "border-border bg-secondary/40 hover:border-primary/30 hover:bg-secondary/60",
             )}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               <span
                 className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
-                  isFullTank ? "bg-gradient-primary text-primary-foreground shadow-glow" : "bg-secondary text-muted-foreground",
+                  "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-300",
+                  isFullTank
+                    ? "bg-gradient-primary text-primary-foreground shadow-glow"
+                    : "bg-secondary text-muted-foreground",
                 )}
               >
-                <Sparkles className="h-4 w-4" />
+                {isFullTank ? <Sparkles className="h-4 w-4" /> : <Droplet className="h-4 w-4" />}
+                {isFullTank && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-background ring-2 ring-primary">
+                    <Check className="h-2.5 w-2.5 text-primary" strokeWidth={3} />
+                  </span>
+                )}
               </span>
-              <div>
-                <p className="text-sm font-semibold">Full tank fill</p>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">
+                  {isFullTank ? "Full tank fill" : "Partial top-up"}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  Required for accurate mileage between two fills.
+                  {isFullTank
+                    ? "Counts as a cycle marker for mileage."
+                    : "Tap to mark as a complete fill."}
                 </p>
               </div>
             </div>
-            <Switch checked={isFullTank} onCheckedChange={setIsFullTank} aria-label="Mark as full tank" />
+            {/* Custom premium pill switch */}
+            <span
+              className={cn(
+                "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-all duration-300",
+                isFullTank
+                  ? "border-primary/50 bg-gradient-primary shadow-[inset_0_1px_2px_hsl(var(--primary-foreground)/0.2),0_0_12px_hsl(var(--primary)/0.5)]"
+                  : "border-border bg-secondary",
+              )}
+            >
+              <span
+                className={cn(
+                  "absolute top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-background shadow-md transition-all duration-300",
+                  isFullTank ? "left-[calc(100%-1.375rem)]" : "left-1",
+                )}
+              >
+                {isFullTank ? (
+                  <Check className="h-3 w-3 text-primary" strokeWidth={3} />
+                ) : (
+                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                )}
+              </span>
+            </span>
           </button>
 
           {/* Odometer — primary input, full width */}
