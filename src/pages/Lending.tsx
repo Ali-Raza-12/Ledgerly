@@ -10,7 +10,7 @@ import {
   Plus,
   Search,
   Trash2,
-  Wallet,
+  Search,
   HandCoins,
   CheckCircle2,
   ChevronRight,
