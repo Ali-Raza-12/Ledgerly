@@ -17,6 +17,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/BrandLogo";
 import type { LedgerEntry, PersonBalance } from "@/types/ledger";
 import { getLedger, deleteLedgerEntry } from "@/services/ledgerService";
 import { Loader } from "@/components/Loader";

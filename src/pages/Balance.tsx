@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AddIncomeDialog } from "@/components/AddIncomeDialog";
 import { AddLedgerDialog } from "@/components/AddLedgerDialog";
 import { Link } from "react-router-dom";
+import { BrandLogo } from "@/components/BrandLogo";
 import {
   Eye,
   EyeOff,
