@@ -261,7 +261,7 @@ export function Balance() {
                 {hidden ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-primary" />}
               </button>
               <div className="h-10 w-10 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-glow">
-                <Wallet className="h-5 w-5 text-primary-foreground" />
+                <BrandLogo className="h-5 w-5" />
               </div>
             </div>
           </div>

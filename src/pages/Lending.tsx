@@ -158,7 +158,7 @@ export function Lending() {
               </p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow">
-              <Wallet className="h-6 w-6 text-primary-foreground" />
+              <BrandLogo className="h-6 w-6" />
             </div>
           </div>
         </div>
