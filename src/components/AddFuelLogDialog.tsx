@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { addFuelLog, getFuelLogs } from "@/services/fuelLogService";
 import { todayISO } from "@/lib/format";
 import type { FuelLog, FuelLogInput } from "@/types/fuel";
-import { Check, Fuel, Gauge, Calendar as CalendarIcon, StickyNote, TrendingUp, Sparkles } from "lucide-react";
+import { Check, Fuel, Gauge, Calendar as CalendarIcon, StickyNote, TrendingUp, Sparkles, Droplet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
