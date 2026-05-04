@@ -8,7 +8,6 @@ import {
   Plus,
   Route,
   Sparkles,
-  Waves,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -34,8 +33,6 @@ const formatLitres = (value: number) => `${value.toFixed(1)} L`;
 const formatAverage = (value: number) => `${value.toFixed(1)} km/L`;
 
 export function BikeTracker() {
-  const [loading, setLoading] = useState(true);
-  const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,603 +80,383 @@ export function BikeTracker() {
     return { total, bySub, timeline };
   }, [expenses, month]);
 
-  return (
-    <section className="space-y-4">
-      <SectionHeader
-        icon={<Wallet className="h-4 w-4" />}
-        title="Bike Expenses"
-        subtitle="Track every rupee spent on your vehicle"
-      />
+  const fuelData = useMemo(() => {
+    const { cycles, activeCycle } = buildFuelCycles(fuelLogs);
+    const latestCycle = cycles[0] ?? null;
+    const bestCycle =
+      cycles.length > 0
+        ? cycles.reduce((best, cycle) =>
+            cycle.averageKmPerLitre > best.averageKmPerLitre ? cycle : best,
+          )
+        : null;
 
-      {/* Hero total */}
-      <div className="relative overflow-hidden rounded-3xl glass-card p-6">
-        <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
-        <div className="relative flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">
-              {filter === "all" ? "Total spent" : `Total ${labelOf(filter)}`}
-            </p>
-            <p className="fin-number mt-1 text-3xl font-semibold sm:text-4xl">
-              {formatCurrency(total)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">{filtered.length} entries</p>
-          </div>
+    const totalDistance = cycles.reduce((sum, cycle) => sum + cycle.distanceKm, 0);
+    const totalLitres = cycles.reduce((sum, cycle) => sum + cycle.litresUsed, 0);
+    const overallAverage = totalLitres > 0 ? totalDistance / totalLitres : null;
+    const fullTankCount = fuelLogs.filter((log) => log.isFullTank).length;
+
+    return {
+      cycles,
+      activeCycle,
+      latestCycle,
+      bestCycle,
+      overallAverage,
+      fullTankCount,
+      totalLogs: fuelLogs.length,
+      recentLogs: fuelLogs,
+    };
+  }, [fuelLogs]);
+
+  if (loading) {
+    return <Loader label="Loading vehicle data" sublabel="Preparing your timeline and fuel insights" />;
+  }
+
+  const action =
+    tab === "timeline" ? (
+      <Button
+        asChild
+        size="sm"
+        className="rounded-xl bg-gradient-primary text-primary-foreground transition-all duration-300 hover:scale-[1.03] hover:shadow-glow"
+      >
+        <Link to="/add">
+          <Plus className="mr-1 h-4 w-4" /> Add
+        </Link>
+      </Button>
+    ) : (
+      <AddFuelLogDialog
+        onSuccess={(log) => setFuelLogs((prev) => [log, ...prev])}
+        trigger={
           <Button
-            onClick={() => setOpen((o) => !o)}
-            className="h-11 rounded-2xl bg-gradient-primary px-4 font-semibold text-primary-foreground shadow-glow hover:opacity-95"
+            size="sm"
+            className="rounded-xl bg-gradient-primary text-primary-foreground transition-all duration-300 hover:scale-[1.03] hover:shadow-glow"
           >
-            <Plus className="mr-1 h-4 w-4" />
-            {open ? "Close" : "Add"}
+            <Fuel className="mr-1 h-4 w-4" /> Log fuel
           </Button>
-        </div>
-      </div>
-
-      {/* Sub-category pills */}
-      <div className="flex flex-wrap gap-2">
-        <FilterPill active={filter === "all"} onClick={() => setFilter("all")}>
-          All
-        </FilterPill>
-        {BIKE_SUBTYPES.map((s) => (
-          <FilterPill
-            key={s.id}
-            active={filter === s.id}
-            color={s.color}
-            onClick={() => setFilter(s.id)}
-          >
-            {s.name}
-          </FilterPill>
-        ))}
-      </div>
-
-      {/* Inline form */}
-      {open && (
-        <ExpenseForm
-          defaultSubType={filter === "all" ? "petrol" : filter}
-          onSaved={() => {
-            setOpen(false);
-            onChanged();
-          }}
-        />
-      )}
-
-      {/* List */}
-      <ExpenseList expenses={filtered} onChanged={onChanged} />
-    </section>
-  );
-}
-
-function FilterPill({
-  active,
-  color,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  color?: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all",
-        active
-          ? "border-transparent bg-foreground text-background shadow-soft"
-          : "border-border bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground",
-      )}
-      style={active && color ? { background: color, color: "#fff" } : undefined}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ExpenseForm({
-  defaultSubType,
-  onSaved,
-}: {
-  defaultSubType: BikeSubType;
-  onSaved: () => void;
-}) {
-  const [subType, setSubType] = useState<BikeSubType>(defaultSubType);
-  const [date, setDate] = useState(todayISO());
-  const [amount, setAmount] = useState("");
-  const [title, setTitle] = useState("");
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amt = parseFloat(amount);
-    if (!amt || amt <= 0) return toast.error("Enter a valid amount");
-
-    setSaving(true);
-    const sub = BIKE_SUBTYPES.find((s) => s.id === subType)!;
-    const { error } = await addExpense({
-      title: title.trim() || sub.name,
-      amount: amt,
-      category: "bike",
-      type: "bike",
-      bikeSubType: subType,
-      date,
-      note: note.trim() || undefined,
-    });
-    setSaving(false);
-    if (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save");
-      return;
-    }
-    toast.success(`${sub.name} expense added`);
-    setAmount("");
-    setTitle("");
-    setNote("");
-    onSaved();
-  };
-
-  return (
-    <form onSubmit={submit} className="glass-card animate-fade-in space-y-4 rounded-3xl p-5">
-      <p className="text-sm font-semibold">New bike expense</p>
-
-      {/* sub-type chips */}
-      <div className="flex flex-wrap gap-2">
-        {BIKE_SUBTYPES.map((s) => {
-          const active = subType === s.id;
-          return (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setSubType(s.id)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
-                active
-                  ? "border-transparent text-white shadow-soft"
-                  : "border-border bg-secondary/50 text-muted-foreground hover:bg-secondary",
-              )}
-              style={active ? { background: s.color } : undefined}
-            >
-              <CategoryIcon name={s.icon} color={active ? "#fff" : s.color} background={false} size={14} />
-              {s.name}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Date">
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="h-11 rounded-xl border-border bg-secondary"
-          />
-        </Field>
-        <Field label="Amount">
-          <Input
-            type="number"
-            inputMode="decimal"
-            placeholder="Rs"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="h-11 rounded-xl border-border bg-secondary"
-          />
-        </Field>
-        <div className="col-span-2">
-          <Field label="Title (optional)">
-            <Input
-              placeholder="e.g. Shell V-Power"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="h-11 rounded-xl border-border bg-secondary"
-            />
-          </Field>
-        </div>
-        <div className="col-span-2">
-          <Field label="Note (optional)">
-            <Input
-              placeholder="Workshop, brand, etc."
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="h-11 rounded-xl border-border bg-secondary"
-            />
-          </Field>
-        </div>
-      </div>
-
-      <Button
-        type="submit"
-        disabled={saving}
-        className="h-12 w-full rounded-2xl bg-gradient-primary font-semibold text-primary-foreground shadow-glow hover:opacity-95"
-      >
-        <Plus className="mr-1 h-4 w-4" /> {saving ? "Saving…" : "Save expense"}
-      </Button>
-    </form>
-  );
-}
-
-function ExpenseList({ expenses, onChanged }: { expenses: Expense[]; onChanged: () => void }) {
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Delete this entry?")) return;
-    const { error } = await deleteExpense(id);
-    if (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete");
-      return;
-    }
-    toast.success("Deleted");
-    onChanged();
-  };
-
-  if (expenses.length === 0) {
-    return (
-      <div className="glass-card rounded-3xl p-10 text-center text-sm text-muted-foreground">
-        No bike expenses yet. Tap <b className="text-foreground">Add</b> to log your first one.
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {[...expenses]
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .map((e) => {
-          const sub = BIKE_SUBTYPES.find((s) => s.id === e.bikeSubType);
-          return (
-            <div key={e.id} className="group glass-card flex items-center gap-3 rounded-2xl p-3.5 sm:p-4">
-              <CategoryIcon
-                name={sub?.icon || "Car"}
-                color={sub?.color || "#10b981"}
-                className="h-11 w-11"
-                size={20}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate font-medium">{e.title || sub?.name}</p>
-                  {sub && (
-                    <span
-                      className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                      style={{ background: `${sub.color}22`, color: sub.color }}
-                    >
-                      {sub.name}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {formatDate(e.date, { day: "numeric", month: "short", year: "numeric" })}
-                  {e.note ? ` • ${e.note}` : ""}
-                </p>
-              </div>
-              <p className="fin-number whitespace-nowrap font-semibold">-{formatCurrency(e.amount)}</p>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleDelete(e.id)}
-                className="h-8 w-8 text-muted-foreground opacity-100 transition-opacity hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100"
-                aria-label="Delete"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          );
-        })}
-    </div>
-  );
-}
-
-/* =================== FUEL AVERAGE CALCULATOR =================== */
-
-function FuelAverageSection({ logs, onChanged }: { logs: FuelLog[]; onChanged: () => void }) {
-  const [open, setOpen] = useState(false);
-  const cycles = useMemo(() => computeFuelCycles(logs), [logs]);
-  const latest = cycles[cycles.length - 1];
-  const fullTanks = logs.filter((l) => l.is_full_tank).length;
-
-  const overallAvg =
-    cycles.length > 0
-      ? cycles.reduce((s, c) => s + c.averageKmPerL, 0) / cycles.length
-      : 0;
-
-  return (
-    <section className="space-y-4">
-      <SectionHeader
-        icon={<Sparkles className="h-4 w-4" />}
-        title="Fuel Average Calculator"
-        subtitle="Auto-calculated between full tank entries"
+        }
       />
-
-      {/* Hero stats */}
-      {latest ? (
-        <div className="relative overflow-hidden rounded-3xl glass-card p-6">
-          <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
-          <div className="relative">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow">
-                  <Gauge className="h-6 w-6 text-primary-foreground" />
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-muted-foreground">Latest Average</p>
-                  <p className="fin-number text-3xl font-semibold sm:text-4xl">
-                    {latest.averageKmPerL.toFixed(2)}{" "}
-                    <span className="text-base font-normal text-muted-foreground">km/L</span>
-                  </p>
-                </div>
-              </div>
-              <div className="hidden items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs text-primary sm:flex">
-                <TrendingUp className="h-3 w-3" /> Live
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <Stat label="Distance" value={`${latest.distance} km`} />
-              <Stat label="Fuel used" value={`${latest.totalLiters.toFixed(2)} L`} />
-              <Stat label="Overall avg" value={`${overallAvg.toFixed(2)} km/L`} />
-            </div>
-
-            <p className="mt-4 text-[11px] text-muted-foreground">
-              Cycle: {formatDate(latest.fromDate, { day: "numeric", month: "short" })} →{" "}
-              {formatDate(latest.toDate, { day: "numeric", month: "short" })} ({latest.fromOdo} → {latest.toOdo} km)
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="glass-card rounded-3xl p-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-warning/15 text-warning">
-              <Info className="h-6 w-6" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold">Waiting for full tank to calculate average</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Add at least <span className="font-medium text-foreground">two “Full Tank”</span> entries with
-                odometer readings. Average will be calculated automatically.
-              </p>
-              <div className="mt-3 flex gap-3 text-xs text-muted-foreground">
-                <span>
-                  <b className="text-foreground">{fullTanks}</b> full tanks
-                </span>
-                <span>•</span>
-                <span>
-                  <b className="text-foreground">{logs.length}</b> total entries
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex justify-end">
-        <Button
-          onClick={() => setOpen((o) => !o)}
-          variant="outline"
-          className="h-10 rounded-2xl"
-        >
-          <Plus className="mr-1 h-4 w-4" />
-          {open ? "Close" : "Log fuel"}
-        </Button>
-      </div>
-
-      {open && (
-        <FuelForm
-          lastOdometer={logs[0]?.odometer}
-          onSaved={() => {
-            setOpen(false);
-            onChanged();
-          }}
-        />
-      )}
-
-      <FuelHistory logs={logs} onDeleted={onChanged} />
-    </section>
-  );
-}
-
-function FuelForm({ lastOdometer, onSaved }: { lastOdometer?: number; onSaved: () => void }) {
-  const [date, setDate] = useState(todayISO());
-  const [odometer, setOdometer] = useState("");
-  const [liters, setLiters] = useState("");
-  const [isFull, setIsFull] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const odo = parseFloat(odometer);
-    const lit = parseFloat(liters);
-    if (!odo || odo <= 0) return toast.error("Enter a valid odometer reading");
-    if (!lit || lit <= 0) return toast.error("Enter fuel liters");
-    if (lastOdometer && odo < lastOdometer) {
-      const ok = window.confirm(
-        `Odometer (${odo}) is lower than last entry (${lastOdometer}). Save anyway?`,
-      );
-      if (!ok) return;
-    }
-
-    setSaving(true);
-    const { error } = await addFuelLog({
-      date,
-      odometer: odo,
-      fuel_liters: lit,
-      fuel_cost: null,
-      is_full_tank: isFull,
-    });
-    setSaving(false);
-
-    if (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save");
-      return;
-    }
-    toast.success(isFull ? "Full tank logged" : "Fuel entry saved");
-    setOdometer("");
-    setLiters("");
-    onSaved();
-  };
-
-  return (
-    <form onSubmit={submit} className="glass-card animate-fade-in space-y-4 rounded-3xl p-5">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold">Log fuel reading</p>
-        <label className="flex cursor-pointer items-center gap-2 rounded-full bg-secondary/60 px-3 py-1.5">
-          <BadgeCheck
-            className={cn("h-4 w-4 transition-colors", isFull ? "text-primary" : "text-muted-foreground")}
-          />
-          <span className="text-xs font-medium">Full tank</span>
-          <Switch checked={isFull} onCheckedChange={setIsFull} />
-        </label>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Date">
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="h-11 rounded-xl border-border bg-secondary"
-          />
-        </Field>
-        <Field label="Odometer (km)">
-          <Input
-            type="number"
-            inputMode="decimal"
-            placeholder={lastOdometer ? `${lastOdometer}` : "0"}
-            value={odometer}
-            onChange={(e) => setOdometer(e.target.value)}
-            className="h-11 rounded-xl border-border bg-secondary"
-          />
-        </Field>
-        <div className="col-span-2">
-          <Field label="Fuel (liters)">
-            <Input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              placeholder="0.00"
-              value={liters}
-              onChange={(e) => setLiters(e.target.value)}
-              className="h-11 rounded-xl border-border bg-secondary"
-            />
-          </Field>
-        </div>
-      </div>
-
-      <p className="text-[11px] text-muted-foreground">
-        Tip: Toggle <b className="text-foreground">Full tank</b> ON every time you fill it completely. Average is
-        calculated between two full tanks.
-      </p>
-
-      <Button
-        type="submit"
-        disabled={saving}
-        className="h-12 w-full rounded-2xl bg-gradient-primary font-semibold text-primary-foreground shadow-glow hover:opacity-95"
-      >
-        <Plus className="mr-1 h-4 w-4" /> {saving ? "Saving…" : "Add fuel entry"}
-      </Button>
-    </form>
-  );
-}
-
-function FuelHistory({ logs, onDeleted }: { logs: FuelLog[]; onDeleted: () => void }) {
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Delete this fuel entry?")) return;
-    const { error } = await deleteFuelLog(id);
-    if (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete");
-      return;
-    }
-    toast.success("Entry deleted");
-    onDeleted();
-  };
-
-  if (logs.length === 0) {
-    return (
-      <div className="glass-card rounded-3xl p-10 text-center text-sm text-muted-foreground">
-        No fuel entries yet.
-      </div>
     );
-  }
 
   return (
-    <div className="space-y-2">
-      <h3 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">Fuel history</h3>
-      {logs.map((log) => (
-        <div key={log.id} className="group glass-card flex items-center gap-3 rounded-2xl p-3.5 sm:p-4">
-          <div
-            className={cn(
-              "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
-              log.is_full_tank ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground",
+    <div className="animate-fade-in">
+      <PageHeader title="Vehicle Tracker" subtitle="Expenses, mileage, and fuel efficiency" action={action} />
+
+      <div className="space-y-5">
+        <div>
+          <Select value={month} onValueChange={setMonth}>
+            <SelectTrigger className="h-11 w-full rounded-xl border-border bg-secondary sm:w-60">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(months.length ? months : [month]).map((item) => (
+                <SelectItem key={item} value={item}>
+                  {monthLabel(item)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <section className="relative overflow-hidden rounded-3xl glass-card p-6">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/15 blur-3xl" />
+          <div className="relative flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow">
+              <Car className="h-7 w-7 text-primary-foreground" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">Monthly vehicle spend</p>
+              <p className="mt-1 fin-number text-3xl font-semibold">{formatCurrency(timelineData.total)}</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-2 gap-3">
+          {BIKE_SUBTYPES.map((subType) => {
+            const amount = timelineData.bySub.get(subType.id) || 0;
+            return (
+              <div key={subType.id} className="glass-card rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <CategoryIcon name={subType.icon} color={subType.color} className="h-10 w-10" size={18} />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">{subType.name}</p>
+                    <p className="fin-number truncate font-semibold">{formatCurrency(amount)}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      </div>
+
+      <Tabs value={tab} onValueChange={setTab} className="mt-6 space-y-5">
+        <TabsList className="grid h-auto w-full grid-cols-2 rounded-2xl border border-border bg-secondary/70 p-1">
+          <TabsTrigger
+            value="timeline"
+            className="gap-2 rounded-xl px-4 py-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-glow"
+          >
+            <History className="h-4 w-4" />
+            Timeline
+          </TabsTrigger>
+          <TabsTrigger
+            value="fuel"
+            className="gap-2 rounded-xl px-4 py-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-glow"
+          >
+            <Fuel className="h-4 w-4" />
+            Fuel Average
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="timeline" className="mt-0 space-y-5 focus-visible:ring-0">
+          <section>
+            <h3 className="mb-3 px-1 text-xs uppercase tracking-widest text-muted-foreground">Timeline</h3>
+            {timelineData.timeline.length === 0 ? (
+              <div className="glass-card rounded-3xl p-10 text-center text-muted-foreground">
+                No vehicle expenses for this month.
+              </div>
+            ) : (
+              <div className="relative pl-6">
+                <div className="absolute bottom-2 left-2 top-2 w-px bg-border" />
+                <div className="space-y-4">
+                  {timelineData.timeline.map((expense) => {
+                    const subType = BIKE_SUBTYPES.find((item) => item.id === expense.bikeSubType);
+                    return (
+                      <div key={expense.id} className="relative">
+                        <div
+                          className="absolute -left-[18px] top-3 h-3 w-3 rounded-full ring-4 ring-background"
+                          style={{ background: subType?.color || "hsl(var(--primary))" }}
+                        />
+                        <div className="glass-card flex items-center gap-3 rounded-2xl p-4">
+                          <CategoryIcon
+                            name={subType?.icon || "Car"}
+                            color={subType?.color}
+                            className="h-10 w-10"
+                            size={18}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">{expense.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {subType?.name} - {formatDate(expense.date, { day: "numeric", month: "short" })}
+                            </p>
+                          </div>
+                          <p className="fin-number font-semibold">{formatCurrency(expense.amount)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
-          >
-            <Fuel className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="truncate font-medium">{Number(log.fuel_liters).toFixed(2)} L</p>
-              {log.is_full_tank && (
-                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                  FULL TANK
+          </section>
+        </TabsContent>
+
+        <TabsContent value="fuel" className="mt-0 space-y-5 focus-visible:ring-0">
+          <section className="relative overflow-hidden rounded-3xl glass-card p-6">
+            <div className="pointer-events-none absolute -left-12 top-0 h-48 w-48 rounded-full bg-primary/15 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-16 right-0 h-44 w-44 rounded-full bg-accent/15 blur-3xl" />
+            <div className="relative space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground">Fuel efficiency</p>
+                  <div className="mt-2 flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow">
+                      <Fuel className="h-6 w-6 text-primary-foreground" />
+                    </div>
+                    <div>
+                      <p className="fin-number text-3xl font-semibold">
+                        {fuelData.latestCycle ? formatAverage(fuelData.latestCycle.averageKmPerLitre) : "Awaiting data"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {fuelData.latestCycle
+                          ? `Latest full-to-full cycle ended ${formatDate(fuelData.latestCycle.endDate, {
+                              day: "numeric",
+                              month: "short",
+                            })}`
+                          : "Your first average appears after two full tank logs"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                  {fuelData.fullTankCount} full tank logs
                 </span>
-              )}
+              </div>
+
+              <div className="rounded-2xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
+                Average uses the full tank method: litres added between two full tank readings divided by the distance travelled.
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {formatDate(log.date, { day: "numeric", month: "short", year: "numeric" })} • {log.odometer} km
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDelete(log.id)}
-            className="h-8 w-8 text-muted-foreground opacity-100 transition-opacity hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100"
-            aria-label="Delete"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ))}
+          </section>
+
+          <section className="grid grid-cols-2 gap-3">
+            <MetricCard
+              icon={<Gauge className="h-4 w-4" />}
+              label="Overall average"
+              value={fuelData.overallAverage ? formatAverage(fuelData.overallAverage) : "Not ready"}
+              tone="primary"
+            />
+            <MetricCard
+              icon={<Sparkles className="h-4 w-4" />}
+              label="Best cycle"
+              value={fuelData.bestCycle ? formatAverage(fuelData.bestCycle.averageKmPerLitre) : "Not ready"}
+              tone="accent"
+            />
+            <MetricCard
+              icon={<Route className="h-4 w-4" />}
+              label="Current cycle"
+              value={fuelData.activeCycle ? formatDistance(fuelData.activeCycle.distanceKm) : "Waiting"}
+              sub={
+                fuelData.activeCycle
+                  ? `${formatLitres(fuelData.activeCycle.litresAdded)} added so far`
+                  : "Log a full tank to start tracking"
+              }
+              tone="primary"
+            />
+            <MetricCard
+              icon={<History className="h-4 w-4" />}
+              label="Saved logs"
+              value={String(fuelData.totalLogs)}
+              sub={`${fuelData.cycles.length} completed cycles`}
+              tone="accent"
+            />
+          </section>
+
+          {fuelData.cycles.length === 0 ? (
+            <section className="glass-card rounded-3xl p-10 text-center">
+              <Fuel className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+              <p className="text-muted-foreground">Add two full tank readings to unlock your first fuel average.</p>
+            </section>
+          ) : (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-xs uppercase tracking-widest text-muted-foreground">Average history</h3>
+                <span className="text-xs text-muted-foreground">{fuelData.cycles.length} cycles</span>
+              </div>
+              <div className="space-y-3">
+                {fuelData.cycles.map((cycle) => (
+                  <div key={cycle.id} className="glass-card rounded-3xl p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">{formatAverage(cycle.averageKmPerLitre)}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {formatDate(cycle.startDate, { day: "numeric", month: "short" })} to{" "}
+                          {formatDate(cycle.endDate, { day: "numeric", month: "short" })}
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-border bg-secondary/50 px-2.5 py-1 text-[11px] text-muted-foreground">
+                        {cycle.logsCount} fills
+                      </span>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <MiniFuelStat label="Distance" value={formatDistance(cycle.distanceKm)} />
+                      <MiniFuelStat label="Fuel used" value={formatLitres(cycle.litresUsed)} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-xs uppercase tracking-widest text-muted-foreground">Fuel log history</h3>
+              <span className="text-xs text-muted-foreground">{fuelData.recentLogs.length} entries</span>
+            </div>
+
+            {fuelData.recentLogs.length === 0 ? (
+              <div className="glass-card rounded-3xl p-10 text-center text-muted-foreground">
+                No fuel logs yet.
+              </div>
+            ) : (
+              <div className="relative pl-6">
+                <div className="absolute bottom-2 left-2 top-2 w-px bg-border" />
+                <div className="space-y-4">
+                  {fuelData.recentLogs.map((log) => (
+                    <div key={log.id} className="relative">
+                      <div
+                        className={cn(
+                          "absolute -left-[18px] top-3 h-3 w-3 rounded-full ring-4 ring-background",
+                          log.isFullTank ? "bg-primary" : "bg-accent",
+                        )}
+                      />
+                      <div className="glass-card rounded-2xl p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{log.isFullTank ? "Full tank" : "Partial fill"}</p>
+                              <span
+                                className={cn(
+                                  "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+                                  log.isFullTank
+                                    ? "bg-primary/15 text-primary"
+                                    : "bg-accent/15 text-accent-foreground",
+                                )}
+                              >
+                                {log.isFullTank ? "Cycle marker" : "Top-up"}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {formatDate(log.date, {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })}{" "}
+                              - {formatDistance(log.odometerKm)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="fin-number font-semibold">{formatLitres(log.litres)}</p>
+                          </div>
+                        </div>
+                        {log.note ? <p className="mt-3 text-sm text-muted-foreground">{log.note}</p> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
 
-/* =================== SHARED =================== */
-
-function SectionHeader({
+function MetricCard({
   icon,
-  title,
-  subtitle,
+  label,
+  value,
+  sub,
+  tone,
 }: {
   icon: React.ReactNode;
-  title: string;
-  subtitle: string;
+  label: string;
+  value: string;
+  sub?: string;
+  tone: "primary" | "accent";
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-        {icon}
+    <div className="glass-card rounded-2xl p-4">
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-lg",
+            tone === "primary" ? "bg-primary/15 text-primary" : "bg-accent/15 text-accent-foreground",
+          )}
+        >
+          {icon}
+        </span>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
       </div>
-      <div>
-        <h2 className="text-base font-semibold leading-tight sm:text-lg">{title}</h2>
-        <p className="text-[11px] text-muted-foreground sm:text-xs">{subtitle}</p>
-      </div>
+      <p className="mt-2 fin-number text-xl font-semibold">{value}</p>
+      {sub ? <p className="mt-1 text-xs text-muted-foreground">{sub}</p> : null}
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function MiniFuelStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {children}
+    <div className="rounded-2xl border border-border bg-secondary/40 p-3">
+      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="mt-1 fin-number text-sm font-semibold">{value}</p>
     </div>
   );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-secondary/60 p-3">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="fin-number mt-1 truncate text-sm font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function labelOf(sub: BikeSubType) {
-  return BIKE_SUBTYPES.find((s) => s.id === sub)?.name ?? sub;
 }
