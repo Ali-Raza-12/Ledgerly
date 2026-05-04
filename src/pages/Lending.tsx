@@ -10,13 +10,13 @@ import {
   Plus,
   Search,
   Trash2,
-  Wallet,
   HandCoins,
   CheckCircle2,
   ChevronRight,
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/BrandLogo";
 import type { LedgerEntry, PersonBalance } from "@/types/ledger";
 import { getLedger, deleteLedgerEntry } from "@/services/ledgerService";
 import { Loader } from "@/components/Loader";
@@ -158,7 +158,7 @@ export function Lending() {
               </p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow">
-              <Wallet className="h-6 w-6 text-primary-foreground" />
+              <BrandLogo className="h-6 w-6" />
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
-import { Home, Clock, Car, BarChart3, Plus, Wallet, HandCoins, LineChart } from "lucide-react";
+import { Home, Clock, Car, BarChart3, Plus, HandCoins, LineChart } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 import { cn } from "@/lib/utils";
 
 const items = [
@@ -17,7 +18,7 @@ export function SideNav() {
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 self-start border-r border-border bg-sidebar/60 backdrop-blur-xl lg:flex lg:flex-col">
       <div className="flex h-20 items-center gap-3 border-b border-border px-6">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-primary shadow-glow">
-          <Wallet className="h-5 w-5 text-primary-foreground" />
+          <BrandLogo className="h-5 w-5" />
         </div>
         <div>
           <div className="font-semibold tracking-tight">Ledgerly</div>

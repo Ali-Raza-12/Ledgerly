@@ -1,15 +1,16 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useEffect, useMemo, useState } from "react";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { addFuelLog } from "@/services/fuelLogService";
+import { addFuelLog, getFuelLogs } from "@/services/fuelLogService";
 import { todayISO } from "@/lib/format";
 import type { FuelLog, FuelLogInput } from "@/types/fuel";
-import { Check, Fuel, Gauge } from "lucide-react";
+import { Check, Fuel, Gauge, Calendar as CalendarIcon, StickyNote, TrendingUp, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Props {
   trigger: React.ReactNode;
@@ -21,46 +22,79 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
   const [date, setDate] = useState(todayISO());
   const [odometerKm, setOdometerKm] = useState("");
   const [litres, setLitres] = useState("");
+  const [pricePerLitre, setPricePerLitre] = useState("");
   const [isFullTank, setIsFullTank] = useState(true);
   const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [lastLog, setLastLog] = useState<FuelLog | null>(null);
 
   const reset = () => {
     setDate(todayISO());
     setOdometerKm("");
     setLitres("");
+    setPricePerLitre("");
     setIsFullTank(true);
     setNote("");
   };
 
+  // Load most recent log when dialog opens for live preview
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    getFuelLogs().then(({ data }) => {
+      if (!active) return;
+      setLastLog(data?.[0] ?? null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [open]);
+
+  const odometerNum = Number(odometerKm);
+  const litresNum = Number(litres);
+  const priceNum = Number(pricePerLitre);
+
+  const preview = useMemo(() => {
+    const distance =
+      lastLog && odometerNum > 0 && odometerNum > lastLog.odometerKm
+        ? odometerNum - lastLog.odometerKm
+        : null;
+    const mileage = distance && litresNum > 0 ? distance / litresNum : null;
+    const cost = litresNum > 0 && priceNum > 0 ? litresNum * priceNum : null;
+    const costPerKm = cost && distance ? cost / distance : null;
+    return { distance, mileage, cost, costPerKm };
+  }, [lastLog, odometerNum, litresNum, priceNum]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const odometer = Number(odometerKm);
-    const fuelLitres = Number(litres);
-
-    if (!odometer || odometer <= 0 || !fuelLitres || fuelLitres <= 0) {
+    if (!odometerNum || odometerNum <= 0 || !litresNum || litresNum <= 0) {
       toast.error("Enter a valid odometer reading and fuel litres");
       return;
     }
 
+    setSubmitting(true);
+    const noteParts: string[] = [];
+    if (priceNum > 0) noteParts.push(`Rs ${priceNum}/L`);
+    if (note.trim()) noteParts.push(note.trim());
+
     const payload: FuelLogInput = {
       date,
-      odometerKm: odometer,
-      litres: fuelLitres,
+      odometerKm: odometerNum,
+      litres: litresNum,
       isFullTank,
-      note: note.trim() || undefined,
+      note: noteParts.length ? noteParts.join(" • ") : undefined,
     };
 
     const { data, error } = await addFuelLog(payload);
+    setSubmitting(false);
+
     if (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save fuel log");
       return;
     }
 
-    if (data?.[0]) {
-      onSuccess?.(data[0]);
-    }
-
+    if (data?.[0]) onSuccess?.(data[0]);
     toast.success("Fuel log saved");
     reset();
     setOpen(false);
@@ -75,87 +109,216 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
       }}
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="glass-card max-w-md rounded-3xl border-border">
-        <DialogHeader>
-          <DialogTitle>Log fuel reading</DialogTitle>
-        </DialogHeader>
+      <DialogContent
+        className="glass-card max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto rounded-3xl border-border p-0"
+      >
+        {/* Hero header */}
+        <div className="relative overflow-hidden rounded-t-3xl border-b border-border/60 bg-gradient-to-br from-primary/15 via-background to-accent/10 p-5 sm:p-6">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-primary/25 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-accent/20 blur-3xl" />
+          <div className="relative flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow">
+              <Fuel className="h-6 w-6 text-primary-foreground" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold tracking-tight sm:text-xl">Log fuel reading</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+                Track every fill to unlock accurate mileage and cost insights.
+              </p>
+            </div>
+          </div>
+        </div>
 
-        <form onSubmit={submit} className="space-y-4">
-          <div className="flex items-center justify-between rounded-2xl border border-border bg-secondary/40 px-4 py-3">
-            <div className="min-w-0 pr-3">
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                  <Fuel className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="text-sm font-medium">Full tank</p>
-                  <p className="text-xs text-muted-foreground">
-                    Turn this on only when the tank is filled completely.
-                  </p>
-                </div>
+        <form onSubmit={submit} className="space-y-5 p-5 sm:p-6">
+          {/* Full tank toggle */}
+          <button
+            type="button"
+            onClick={() => setIsFullTank((v) => !v)}
+            className={cn(
+              "group flex w-full items-center justify-between rounded-2xl border p-4 text-left transition-all",
+              isFullTank
+                ? "border-primary/40 bg-primary/10 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]"
+                : "border-border bg-secondary/40 hover:border-primary/30",
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <span
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+                  isFullTank ? "bg-gradient-primary text-primary-foreground shadow-glow" : "bg-secondary text-muted-foreground",
+                )}
+              >
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold">Full tank fill</p>
+                <p className="text-xs text-muted-foreground">
+                  Required for accurate mileage between two fills.
+                </p>
               </div>
             </div>
-            <Switch checked={isFullTank} onCheckedChange={setIsFullTank} aria-label="Mark fuel log as full tank" />
-          </div>
+            <Switch checked={isFullTank} onCheckedChange={setIsFullTank} aria-label="Mark as full tank" />
+          </button>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Date</Label>
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="h-11 rounded-xl border-border bg-secondary"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Fuel litres</Label>
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={litres}
-                onChange={(e) => setLitres(e.target.value)}
-                placeholder="0"
-                className="h-11 rounded-xl border-border bg-secondary"
-              />
-            </div>
-          </div>
-
+          {/* Odometer — primary input, full width */}
           <div className="space-y-2">
-            <Label>Meter reading (km)</Label>
+            <Label htmlFor="odometer" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Odometer reading
+            </Label>
             <div className="relative">
-              <Gauge className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Gauge className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-primary/70" />
               <Input
+                id="odometer"
                 type="number"
                 inputMode="numeric"
                 value={odometerKm}
                 onChange={(e) => setOdometerKm(e.target.value)}
-                placeholder="e.g. 24580"
-                className="h-11 rounded-xl border-border bg-secondary pl-10"
+                placeholder="24,580"
+                className="h-14 rounded-2xl border-border bg-secondary/60 pl-12 pr-16 text-lg font-semibold tracking-tight focus-visible:border-primary/60 focus-visible:ring-primary/20"
+              />
+              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
+                km
+              </span>
+            </div>
+            {lastLog && (
+              <p className="px-1 text-[11px] text-muted-foreground">
+                Last reading: <span className="font-medium text-foreground">{lastLog.odometerKm.toLocaleString()} km</span>
+              </p>
+            )}
+          </div>
+
+          {/* Litres + Price grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="litres" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Fuel
+              </Label>
+              <div className="relative">
+                <Input
+                  id="litres"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  value={litres}
+                  onChange={(e) => setLitres(e.target.value)}
+                  placeholder="0.0"
+                  className="h-12 rounded-xl border-border bg-secondary/60 pr-10 font-medium focus-visible:border-primary/60"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                  L
+                </span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="price" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Price / L <span className="opacity-60">(opt)</span>
+              </Label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                  Rs
+                </span>
+                <Input
+                  id="price"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  value={pricePerLitre}
+                  onChange={(e) => setPricePerLitre(e.target.value)}
+                  placeholder="0"
+                  className="h-12 rounded-xl border-border bg-secondary/60 pl-10 font-medium focus-visible:border-primary/60"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Date */}
+          <div className="space-y-2">
+            <Label htmlFor="date" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Date
+            </Label>
+            <div className="relative">
+              <CalendarIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="h-12 rounded-xl border-border bg-secondary/60 pl-10 font-medium focus-visible:border-primary/60"
               />
             </div>
           </div>
 
+          {/* Live preview */}
+          {(preview.distance || preview.mileage || preview.cost) && (
+            <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-accent/5 p-4 animate-fade-in">
+              <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-primary/20 blur-2xl" />
+              <div className="relative">
+                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-primary">
+                  <TrendingUp className="h-3 w-3" />
+                  Live preview
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <PreviewStat label="Distance" value={preview.distance ? `${Math.round(preview.distance)} km` : "—"} />
+                  <PreviewStat
+                    label="Mileage"
+                    value={preview.mileage ? `${preview.mileage.toFixed(1)} km/L` : "—"}
+                    accent
+                  />
+                  <PreviewStat label="Total cost" value={preview.cost ? `Rs ${preview.cost.toFixed(0)}` : "—"} />
+                  <PreviewStat
+                    label="Cost / km"
+                    value={preview.costPerKm ? `Rs ${preview.costPerKm.toFixed(2)}` : "—"}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Note */}
           <div className="space-y-2">
-            <Label>Note (optional)</Label>
+            <Label htmlFor="note" className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <StickyNote className="h-3 w-3" /> Note (optional)
+            </Label>
             <Textarea
+              id="note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
               placeholder="Pump, route, or trip note..."
-              className="resize-none rounded-xl border-border bg-secondary"
+              className="resize-none rounded-xl border-border bg-secondary/60 focus-visible:border-primary/60"
             />
           </div>
 
-          <Button
-            type="submit"
-            className="h-12 w-full rounded-xl bg-gradient-primary font-semibold text-primary-foreground shadow-glow"
-          >
-            <Check className="mr-2 h-4 w-4" />
-            Save fuel log
-          </Button>
+          {/* Actions */}
+          <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setOpen(false)}
+              className="h-12 rounded-xl sm:w-28"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="h-12 flex-1 rounded-xl bg-gradient-primary font-semibold text-primary-foreground shadow-glow transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-8px_hsl(var(--primary)/0.55)]"
+            >
+              <Check className="mr-2 h-4 w-4" />
+              {submitting ? "Saving..." : "Save fuel log"}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function PreviewStat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/40 px-3 py-2 backdrop-blur-sm">
+      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className={cn("mt-0.5 text-sm font-semibold tabular-nums", accent && "text-primary")}>{value}</p>
+    </div>
   );
 }

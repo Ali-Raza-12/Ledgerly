@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatCurrency, monthKey, monthLabel, previousMonth, todayISO } from "@/lib/format";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { ArrowDownRight, ArrowRight, ArrowUpRight, TrendingUp, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, TrendingUp } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 import { Progress } from "@/components/ui/progress";
 import { ExpenseListItem } from "@/components/ExpenseListItem";
 import { Link } from "react-router-dom";
@@ -94,7 +95,7 @@ export function Dashboard() {
               <p className="text-sm text-muted-foreground mt-1">Total spent</p>
             </div>
             <div className="h-10 w-10 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-glow">
-              <Wallet className="h-5 w-5 text-primary-foreground" />
+              <BrandLogo className="h-5 w-5" />
             </div>
           </div>
           <div className="mt-4 flex items-baseline gap-3">
