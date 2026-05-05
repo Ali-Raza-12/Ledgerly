@@ -31,6 +31,7 @@ import type { Income } from "@/types/income";
 import type { LedgerEntry } from "@/types/ledger";
 import { Loader } from "@/components/Loader";
 import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface UnifiedTxn {
   id: string;
