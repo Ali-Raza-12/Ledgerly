@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { addFuelLog, getFuelLogs } from "@/services/fuelLogService";
 import { todayISO } from "@/lib/format";
 import type { FuelLog, FuelLogInput } from "@/types/fuel";
-import { Check, Fuel, Gauge, Calendar as CalendarIcon, StickyNote, TrendingUp, Sparkles, Droplet } from "lucide-react";
+import { Calendar as CalendarIcon, Check, Droplet, Fuel, Gauge, Sparkles, StickyNote, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
   const [date, setDate] = useState(todayISO());
   const [odometerKm, setOdometerKm] = useState("");
   const [litres, setLitres] = useState("");
-  const [pricePerLitre, setPricePerLitre] = useState("");
+  const [fuelCost, setFuelCost] = useState("");
   const [isFullTank, setIsFullTank] = useState(true);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -31,12 +31,11 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
     setDate(todayISO());
     setOdometerKm("");
     setLitres("");
-    setPricePerLitre("");
+    setFuelCost("");
     setIsFullTank(true);
     setNote("");
   };
 
-  // Load most recent log when dialog opens for live preview
   useEffect(() => {
     if (!open) return;
     let active = true;
@@ -51,7 +50,7 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
 
   const odometerNum = Number(odometerKm);
   const litresNum = Number(litres);
-  const priceNum = Number(pricePerLitre);
+  const fuelCostNum = Number(fuelCost);
 
   const preview = useMemo(() => {
     const distance =
@@ -59,30 +58,28 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
         ? odometerNum - lastLog.odometerKm
         : null;
     const mileage = distance && litresNum > 0 ? distance / litresNum : null;
-    const cost = litresNum > 0 && priceNum > 0 ? litresNum * priceNum : null;
+    const cost = fuelCostNum > 0 ? fuelCostNum : null;
     const costPerKm = cost && distance ? cost / distance : null;
     return { distance, mileage, cost, costPerKm };
-  }, [lastLog, odometerNum, litresNum, priceNum]);
+  }, [lastLog, odometerNum, litresNum, fuelCostNum]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!odometerNum || odometerNum <= 0 || !litresNum || litresNum <= 0) {
-      toast.error("Enter a valid odometer reading and fuel litres");
+    if (!odometerNum || odometerNum <= 0 || !litresNum || litresNum <= 0 || !fuelCostNum || fuelCostNum <= 0) {
+      toast.error("Enter a valid odometer reading, fuel litres, and fuel cost");
       return;
     }
 
     setSubmitting(true);
-    const noteParts: string[] = [];
-    if (priceNum > 0) noteParts.push(`Rs ${priceNum}/L`);
-    if (note.trim()) noteParts.push(note.trim());
 
     const payload: FuelLogInput = {
       date,
       odometerKm: odometerNum,
       litres: litresNum,
+      fuelCost: fuelCostNum,
       isFullTank,
-      note: noteParts.length ? noteParts.join(" • ") : undefined,
+      note: note.trim() || undefined,
     };
 
     const { data, error } = await addFuelLog(payload);
@@ -93,7 +90,10 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
       return;
     }
 
-    if (data?.[0]) onSuccess?.(data[0]);
+    if (data?.[0]) {
+      onSuccess?.(data[0]);
+    }
+
     toast.success("Fuel log saved");
     reset();
     setOpen(false);
@@ -108,10 +108,7 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
       }}
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent
-        className="app-scrollbar glass-card max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto rounded-3xl border-border p-0"
-      >
-        {/* Hero header */}
+      <DialogContent className="app-scrollbar glass-card max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto rounded-3xl border-border p-0">
         <div className="relative overflow-hidden rounded-t-3xl border-b border-border/60 bg-gradient-to-br from-primary/15 via-background to-accent/10 p-5 sm:p-6">
           <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-primary/25 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-accent/20 blur-3xl" />
@@ -129,13 +126,12 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
         </div>
 
         <form onSubmit={submit} className="space-y-5 p-5 sm:p-6">
-          {/* Full tank toggle — premium custom switch */}
           <button
             type="button"
             role="switch"
             aria-checked={isFullTank}
             aria-label="Mark as full tank fill"
-            onClick={() => setIsFullTank((v) => !v)}
+            onClick={() => setIsFullTank((value) => !value)}
             className={cn(
               "group flex w-full items-center justify-between gap-3 rounded-2xl border p-4 text-left transition-all duration-300",
               isFullTank
@@ -153,24 +149,19 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
                 )}
               >
                 {isFullTank ? <Sparkles className="h-4 w-4" /> : <Droplet className="h-4 w-4" />}
-                {isFullTank && (
+                {isFullTank ? (
                   <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-background ring-2 ring-primary">
                     <Check className="h-2.5 w-2.5 text-primary" strokeWidth={3} />
                   </span>
-                )}
+                ) : null}
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold">
-                  {isFullTank ? "Full tank fill" : "Partial top-up"}
-                </p>
+                <p className="text-sm font-semibold">{isFullTank ? "Full tank fill" : "Partial top-up"}</p>
                 <p className="text-xs text-muted-foreground">
-                  {isFullTank
-                    ? "Counts as a cycle marker for mileage."
-                    : "Tap to mark as a complete fill."}
+                  {isFullTank ? "Counts as a cycle marker for mileage." : "Tap to mark as a complete fill."}
                 </p>
               </div>
             </div>
-            {/* Custom premium pill switch */}
             <span
               className={cn(
                 "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-all duration-300",
@@ -194,7 +185,6 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
             </span>
           </button>
 
-          {/* Odometer — primary input, full width */}
           <div className="space-y-2">
             <Label htmlFor="odometer" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Odometer reading
@@ -214,14 +204,13 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
                 km
               </span>
             </div>
-            {lastLog && (
+            {lastLog ? (
               <p className="px-1 text-[11px] text-muted-foreground">
                 Last reading: <span className="font-medium text-foreground">{lastLog.odometerKm.toLocaleString()} km</span>
               </p>
-            )}
+            ) : null}
           </div>
 
-          {/* Litres + Price grid */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="litres" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -244,20 +233,20 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="price" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Price / L <span className="opacity-60">(opt)</span>
+              <Label htmlFor="fuel-cost" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Fuel cost
               </Label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                   Rs
                 </span>
                 <Input
-                  id="price"
+                  id="fuel-cost"
                   type="number"
                   inputMode="decimal"
                   step="0.01"
-                  value={pricePerLitre}
-                  onChange={(e) => setPricePerLitre(e.target.value)}
+                  value={fuelCost}
+                  onChange={(e) => setFuelCost(e.target.value)}
                   placeholder="0"
                   className="h-12 rounded-xl border-border bg-secondary/60 pl-10 font-medium focus-visible:border-primary/60"
                 />
@@ -265,7 +254,6 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
             </div>
           </div>
 
-          {/* Date */}
           <div className="space-y-2">
             <Label htmlFor="date" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Date
@@ -282,8 +270,7 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
             </div>
           </div>
 
-          {/* Live preview */}
-          {(preview.distance || preview.mileage || preview.cost) && (
+          {preview.distance || preview.mileage || preview.cost ? (
             <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-accent/5 p-4 animate-fade-in">
               <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-primary/20 blur-2xl" />
               <div className="relative">
@@ -292,23 +279,22 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
                   Live preview
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <PreviewStat label="Distance" value={preview.distance ? `${Math.round(preview.distance)} km` : "—"} />
+                  <PreviewStat label="Distance" value={preview.distance ? `${Math.round(preview.distance)} km` : "-"} />
                   <PreviewStat
                     label="Mileage"
-                    value={preview.mileage ? `${preview.mileage.toFixed(1)} km/L` : "—"}
+                    value={preview.mileage ? `${preview.mileage.toFixed(1)} km/L` : "-"}
                     accent
                   />
-                  <PreviewStat label="Total cost" value={preview.cost ? `Rs ${preview.cost.toFixed(0)}` : "—"} />
+                  <PreviewStat label="Total cost" value={preview.cost ? `Rs ${preview.cost.toFixed(0)}` : "-"} />
                   <PreviewStat
                     label="Cost / km"
-                    value={preview.costPerKm ? `Rs ${preview.costPerKm.toFixed(2)}` : "—"}
+                    value={preview.costPerKm ? `Rs ${preview.costPerKm.toFixed(2)}` : "-"}
                   />
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
 
-          {/* Note */}
           <div className="space-y-2">
             <Label htmlFor="note" className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               <StickyNote className="h-3 w-3" /> Note (optional)
@@ -323,14 +309,8 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
             />
           </div>
 
-          {/* Actions */}
           <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setOpen(false)}
-              className="h-12 rounded-xl sm:w-28"
-            >
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)} className="h-12 rounded-xl sm:w-28">
               Cancel
             </Button>
             <Button

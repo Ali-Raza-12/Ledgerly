@@ -55,9 +55,11 @@ export const getExpenses = async () => {
 export const addExpense = async (expense: ExpenseInput) => {
   try {
     const userId = await requireUserId();
-    const { month: _month, ...expenseWithoutMonth } = expense;
+    const { bikeSubType, month, ...expenseInput } = expense as any;
     const payload = {
-      ...expenseWithoutMonth,
+      ...expenseInput,
+      month: month ?? monthKey(expense.date),
+      bike_sub_type: bikeSubType,
       user_id: userId,
     };
 

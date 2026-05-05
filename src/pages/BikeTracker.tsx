@@ -39,25 +39,32 @@ export function BikeTracker() {
   const [month, setMonth] = useState<string>(monthKey(todayISO()));
   const [tab, setTab] = useState("timeline");
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const [{ data: expenseData, error: expenseError }, { data: fuelData, error: fuelError }] =
-        await Promise.all([getExpenses(), getFuelLogs()]);
+  const loadVehicleData = async (showLoader = false) => {
+    if (showLoader) {
+      setLoading(true);
+    }
 
-      if (expenseError) {
-        toast.error(expenseError instanceof Error ? expenseError.message : "Failed to fetch expenses");
-      }
+    const [{ data: expenseData, error: expenseError }, { data: fuelData, error: fuelError }] =
+      await Promise.all([getExpenses(), getFuelLogs()]);
 
-      if (fuelError) {
-        toast.error(fuelError instanceof Error ? fuelError.message : "Failed to fetch fuel history");
-      }
+    if (expenseError) {
+      toast.error(expenseError instanceof Error ? expenseError.message : "Failed to fetch expenses");
+    }
 
-      setExpenses(expenseData || []);
-      setFuelLogs(fuelData || []);
+    if (fuelError) {
+      toast.error(fuelError instanceof Error ? fuelError.message : "Failed to fetch fuel history");
+    }
+
+    setExpenses(expenseData || []);
+    setFuelLogs(fuelData || []);
+
+    if (showLoader) {
       setLoading(false);
-    };
+    }
+  };
 
-    fetchData();
+  useEffect(() => {
+    void loadVehicleData(true);
   }, []);
 
   const months = useMemo(
@@ -111,6 +118,9 @@ export function BikeTracker() {
     return <Loader label="Loading vehicle data" sublabel="Preparing your timeline and fuel insights" />;
   }
 
+  const fullTankLabel =
+    fuelData.fullTankCount === 1 ? "1 full tank log" : `${fuelData.fullTankCount} full tank logs`;
+
   const action =
     tab === "timeline" ? (
       <Button
@@ -124,7 +134,9 @@ export function BikeTracker() {
       </Button>
     ) : (
       <AddFuelLogDialog
-        onSuccess={(log) => setFuelLogs((prev) => [log, ...prev])}
+        onSuccess={() => {
+          void loadVehicleData();
+        }}
         trigger={
           <Button
             size="sm"
@@ -253,18 +265,18 @@ export function BikeTracker() {
             <div className="pointer-events-none absolute -left-12 top-0 h-48 w-48 rounded-full bg-primary/15 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-16 right-0 h-44 w-44 rounded-full bg-accent/15 blur-3xl" />
             <div className="relative space-y-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">Fuel efficiency</p>
-                  <div className="mt-2 flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow">
+                  <div className="mt-2 flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow sm:h-12 sm:w-12">
                       <Fuel className="h-6 w-6 text-primary-foreground" />
                     </div>
-                    <div>
-                      <p className="fin-number text-3xl font-semibold">
+                    <div className="min-w-0">
+                      <p className="fin-number text-3xl font-semibold leading-none sm:text-4xl">
                         {fuelData.latestCycle ? formatAverage(fuelData.latestCycle.averageKmPerLitre) : "Awaiting data"}
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
                         {fuelData.latestCycle
                           ? `Latest full-to-full cycle ended ${formatDate(fuelData.latestCycle.endDate, {
                               day: "numeric",
@@ -275,8 +287,8 @@ export function BikeTracker() {
                     </div>
                   </div>
                 </div>
-                <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                  {fuelData.fullTankCount} full tank logs
+                <span className="inline-flex w-fit self-start rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary sm:self-auto">
+                  {fullTankLabel}
                 </span>
               </div>
 
@@ -404,6 +416,7 @@ export function BikeTracker() {
                           </div>
                           <div className="text-right">
                             <p className="fin-number font-semibold">{formatLitres(log.litres)}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{formatCurrency(log.fuelCost)}</p>
                           </div>
                         </div>
                         {log.note ? <p className="mt-3 text-sm text-muted-foreground">{log.note}</p> : null}

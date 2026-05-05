@@ -177,10 +177,6 @@ export function Balance() {
   const balancePositive = balance >= 0;
 
   const onDeleteTxn = async (t: UnifiedTxn) => {
-    if (!window.confirm(`Delete "${t.title}"?`)) {
-      return;
-    }
-
     const rawId = t.id.replace(/^(inc|exp|lg)-/, "");
     try {
       if (t.id.startsWith("inc-")) {
@@ -430,31 +426,50 @@ function TxnRow({ txn, hidden, onDelete }: { txn: UnifiedTxn; hidden: boolean; o
   })();
 
   return (
-    <div className="group flex items-center gap-3 p-2.5 rounded-2xl hover:bg-secondary/40 transition-colors">
-      <span className={cn("h-9 w-9 rounded-xl flex items-center justify-center shrink-0", config.tone)}>
-        {config.icon}
-      </span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{txn.title}</p>
-        {txn.subtitle && (
-          <p className="text-xs text-muted-foreground truncate capitalize">{txn.subtitle}</p>
-        )}
+    <AlertDialog>
+      <div className="group flex items-center gap-3 p-2.5 rounded-2xl hover:bg-secondary/40 transition-colors">
+        <span className={cn("h-9 w-9 rounded-xl flex items-center justify-center shrink-0", config.tone)}>
+          {config.icon}
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{txn.title}</p>
+          {txn.subtitle && (
+            <p className="text-xs text-muted-foreground truncate capitalize">{txn.subtitle}</p>
+          )}
+        </div>
+        <p
+          className={cn(
+            "fin-number font-semibold text-sm",
+            positive ? "text-primary" : "text-destructive"
+          )}
+        >
+          {hidden ? "•••" : `${positive ? "+" : "-"}${formatCurrency(txn.amount)}`}
+        </p>
+        <AlertDialogTrigger asChild>
+          <button
+            type="button"
+            className="opacity-0 group-hover:opacity-100 h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive transition-colors"
+            aria-label="Delete"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </AlertDialogTrigger>
       </div>
-      <p
-        className={cn(
-          "fin-number font-semibold text-sm",
-          positive ? "text-primary" : "text-destructive"
-        )}
-      >
-        {hidden ? "•••" : `${positive ? "+" : "-"}${formatCurrency(txn.amount)}`}
-      </p>
-      <button
-        onClick={onDelete}
-        className="opacity-0 group-hover:opacity-100 h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive transition-colors"
-        aria-label="Delete"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
-    </div>
+
+      <AlertDialogContent className="glass-card border-border max-w-md rounded-3xl">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete transaction</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete <span className="font-semibold">{txn.title}</span>? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground">
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

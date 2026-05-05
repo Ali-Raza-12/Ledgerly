@@ -1,87 +1,91 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { formatCurrency, monthKey, monthLabel, previousMonth, todayISO } from "@/lib/format";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, TrendingUp } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Progress } from "@/components/ui/progress";
 import { ExpenseListItem } from "@/components/ExpenseListItem";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { getExpenses } from "@/services/expenseService";
+import { deleteExpense, getExpenses } from "@/services/expenseService";
 import { getCategories } from "@/services/categoryService";
 import { getBudget } from "@/services/budgetService";
-import { Category, Expense } from "@/types/expense";
-import { toast } from "sonner";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 export function Dashboard() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [budget, setBudgetAmount] = useState<number | null>(null);
-
-  useEffect(() => {
-    const fetchExpenses = async () => {
-      const { data, error } = await getExpenses();
-      if (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to fetch expenses");
-        return;
-      } 
-      setExpenses(data || []);
-    };
-    const fetchCategories = async () => {
-      const { data, error } = await getCategories();
-      if (error) {
-        toast.error("Failed to fetch categories");
-        return;
-      }
-      setCategories(data || []);
-    };
-
-    fetchExpenses();
-    fetchCategories();
-  }, []);
 
   const currentMonth = monthKey(todayISO());
   const prevMonth = previousMonth(currentMonth);
+  const QueryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchBudget = async () => {
-      try {
-        const value = await getBudget(currentMonth);
-        setBudgetAmount(value);
-      } catch (error) {
-        console.error("Failed to fetch budget:", error);
-        toast.error(error instanceof Error ? error.message : "Failed to fetch budget");
-        setBudgetAmount(null);
-      }
-    };
+  const { data: expenses = [], isLoading: expensesLoading } = useQuery({ 
+    queryKey: ["expenses"],
+    queryFn: async () => {
+      const res = await getExpenses();
+      return res.data || [];
+    },
+    retry: 1,
+  });
 
-    fetchBudget();
-  }, [currentMonth]);
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const res = await getCategories();
+      return res.data || [];
+    },
+    retry: 1,
+  });
 
-  const data = useMemo(() => {
-    const monthExp = expenses.filter((e) => monthKey(e.date) === currentMonth);
-    const prevExp = expenses.filter((e) => monthKey(e.date) === prevMonth);
-    const total = monthExp.reduce((s, e) => s + e.amount, 0);
-    const prevTotal = prevExp.reduce((s, e) => s + e.amount, 0);
-    const today = todayISO();
-    const todayTotal = monthExp.filter((e) => e.date === today).reduce((s, e) => s + e.amount, 0);
+  const { data: budget, isLoading: budgetLoading } = useQuery({
+    queryKey: ["budget", currentMonth],
+    queryFn: async () => {
+      return await getBudget(currentMonth);
+    },
+    retry: 1,
+  });
 
-    const byCat = new Map<string, number>();
-    for (const e of monthExp) byCat.set(e.category, (byCat.get(e.category) || 0) + e.amount);
-    const cats = [...byCat.entries()]
-      .map(([id, amount]) => ({ id, amount, cat: categories.find((c) => c.id === id) }))
-      .sort((a, b) => b.amount - a.amount);
+  const dashboardData = useMemo(() => {
+  const monthExp = expenses.filter((e) => monthKey(e.date) === currentMonth);
+  const prevExp = expenses.filter((e) => monthKey(e.date) === prevMonth);
 
-    const top = cats[0];
-    const change = prevTotal === 0 ? 0 : ((total - prevTotal) / prevTotal) * 100;
+  const total = monthExp.reduce((s, e) => s + e.amount, 0);
+  const prevTotal = prevExp.reduce((s, e) => s + e.amount, 0);
 
-    return { total, prevTotal, todayTotal, cats, top, change, monthExp };
+  const today = todayISO();
+  const todayTotal = monthExp
+    .filter((e) => e.date === today)
+    .reduce((s, e) => s + e.amount, 0);
+
+  const byCat = new Map();
+  for (const e of monthExp) {
+    byCat.set(e.category, (byCat.get(e.category) || 0) + e.amount);
+  }
+
+  const cats = [...byCat.entries()]
+    .map(([id, amount]) => ({
+      id,
+      amount,
+      cat: categories.find((c) => c.id === id),
+    }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const top = cats[0];
+  const change =
+    prevTotal === 0 ? 0 : ((total - prevTotal) / prevTotal) * 100;
+
+  return { total, prevTotal, todayTotal, cats, top, change, monthExp };
+
   }, [expenses, categories, currentMonth, prevMonth]);
 
-  const budgetUsed = budget ? Math.min(100, (data.total / budget) * 100) : 0;
-  const overBudget = budget != null && data.total > budget;
+  const budgetUsed = budget ? Math.min(100, (dashboardData.total / budget) * 100) : 0;
+  const overBudget = budget != null && dashboardData.total > budget;
 
-  const recent = [...data.monthExp].slice(0, 5);
+  const recent = [...dashboardData.monthExp].slice(0, 5);
+
+  if (expensesLoading || categoriesLoading || budgetLoading) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -99,15 +103,15 @@ export function Dashboard() {
             </div>
           </div>
           <div className="mt-4 flex items-baseline gap-3">
-            <h2 className="fin-number text-4xl lg:text-5xl font-semibold">{formatCurrency(data.total)}</h2>
-            {data.prevTotal > 0 && (
+            <h2 className="fin-number text-4xl lg:text-5xl font-semibold">{formatCurrency(dashboardData.total)}</h2>
+            {dashboardData.prevTotal > 0 && (
               <span
                 className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
-                  data.change > 0 ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"
+                  dashboardData.change > 0 ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"
                 }`}
               >
-                {data.change > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                {Math.abs(data.change).toFixed(0)}%
+                {dashboardData.change > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                {Math.abs(dashboardData.change).toFixed(0)}%
               </span>
             )}
           </div>
@@ -117,7 +121,7 @@ export function Dashboard() {
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
                 <span>Budget {formatCurrency(budget)}</span>
                 <span className={overBudget ? "text-destructive font-medium" : ""}>
-                  {overBudget ? "Over budget" : `${formatCurrency(budget - data.total)} left`}
+                  {overBudget ? "Over budget" : `${formatCurrency(budget - dashboardData.total)} left`}
                 </span>
               </div>
               <Progress value={budgetUsed} className="h-2 bg-secondary" />
@@ -128,13 +132,13 @@ export function Dashboard() {
 
       {/* Quick stats */}
       <section className="grid grid-cols-2 gap-3">
-        <StatCard label="Today" value={formatCurrency(data.todayTotal)} accent="primary" />
+        <StatCard label="Today" value={formatCurrency(dashboardData.todayTotal)} accent="primary" />
         <StatCard
           label="Top category"
-          value={data.top?.cat?.name || "—"}
-          sub={data.top ? formatCurrency(data.top.amount) : ""}
+          value={dashboardData.top?.cat?.name || "—"}
+          sub={dashboardData.top ? formatCurrency(dashboardData.top.amount) : ""}
           accent="accent"
-          color={data.top?.cat?.color}
+          color={dashboardData.top?.cat?.color}
         />
       </section>
 
@@ -142,14 +146,14 @@ export function Dashboard() {
       <section className="glass-card rounded-3xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">Categories</h3>
-          <span className="text-xs text-muted-foreground">{data.cats.length} active</span>
+          <span className="text-xs text-muted-foreground">{dashboardData.cats.length} active</span>
         </div>
-        {data.cats.length === 0 ? (
+        {dashboardData.cats.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">No expenses yet this month.</p>
         ) : (
           <div className="space-y-3">
-            {data.cats.slice(0, 5).map(({ id, amount, cat }) => {
-              const pct = data.total > 0 ? (amount / data.total) * 100 : 0;
+            {dashboardData.cats.slice(0, 5).map(({ id, amount, cat }) => {
+              const pct = dashboardData.total > 0 ? (amount / dashboardData.total) * 100 : 0;
               return (
                 <div key={id} className="flex items-center gap-3">
                   <CategoryIcon name={cat?.icon || "Circle"} color={cat?.color} className="h-10 w-10" />
@@ -198,11 +202,105 @@ export function Dashboard() {
               <ExpenseListItem 
                 key={e.id} 
                 expense={e}
-                onDelete={(id) => setExpenses((prev) => prev.filter((exp) => exp.id !== id))}
+                onDelete={async (id) => {
+                  await deleteExpense(id);
+                  QueryClient.invalidateQueries({ queryKey: ["expenses"] });
+                }}
               />
             ))}
           </div>
         )}
+      </section>
+    </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <section className="relative overflow-hidden rounded-3xl glass-card p-6 lg:p-8">
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <div className="relative">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-24 rounded-full bg-secondary/80" />
+              <Skeleton className="h-4 w-20 rounded-full bg-secondary/70" />
+            </div>
+            <Skeleton className="h-10 w-10 rounded-2xl bg-secondary/80" />
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <Skeleton className="h-12 w-48 rounded-2xl bg-secondary/80" />
+            <Skeleton className="h-6 w-16 rounded-full bg-secondary/70" />
+          </div>
+
+          <div className="mt-6 space-y-2">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-3 w-24 rounded-full bg-secondary/70" />
+              <Skeleton className="h-3 w-20 rounded-full bg-secondary/70" />
+            </div>
+            <Skeleton className="h-2 w-full rounded-full bg-secondary/80" />
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3">
+        {[0, 1].map((item) => (
+          <div key={item} className="glass-card rounded-2xl p-4">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-2 w-2 rounded-full bg-secondary/80" />
+              <Skeleton className="h-3 w-20 rounded-full bg-secondary/70" />
+            </div>
+            <Skeleton className="mt-3 h-7 w-28 rounded-xl bg-secondary/80" />
+            <Skeleton className="mt-2 h-3 w-16 rounded-full bg-secondary/70" />
+          </div>
+        ))}
+      </section>
+
+      <section className="glass-card rounded-3xl p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <Skeleton className="h-5 w-24 rounded-full bg-secondary/80" />
+          <Skeleton className="h-3 w-12 rounded-full bg-secondary/70" />
+        </div>
+        <div className="space-y-4">
+          {[0, 1, 2, 3].map((item) => (
+            <div key={item} className="flex items-center gap-3">
+              <Skeleton className="h-10 w-10 rounded-2xl bg-secondary/80" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <Skeleton className="h-4 w-24 rounded-full bg-secondary/80" />
+                  <Skeleton className="h-4 w-16 rounded-full bg-secondary/70" />
+                </div>
+                <Skeleton className="h-1.5 w-full rounded-full bg-secondary/80" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="glass-card rounded-3xl p-3 lg:p-4">
+        <div className="mb-2 flex items-center justify-between px-2 pt-2">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-4 rounded-full bg-secondary/80" />
+            <Skeleton className="h-5 w-28 rounded-full bg-secondary/80" />
+          </div>
+          <Skeleton className="h-8 w-20 rounded-full bg-secondary/70" />
+        </div>
+
+        <div className="space-y-2">
+          {[0, 1, 2, 3].map((item) => (
+            <div key={item} className="rounded-2xl border border-border/60 bg-secondary/30 p-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-10 rounded-2xl bg-secondary/80" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32 rounded-full bg-secondary/80" />
+                  <Skeleton className="h-3 w-20 rounded-full bg-secondary/70" />
+                </div>
+                <Skeleton className="h-5 w-16 rounded-full bg-secondary/80" />
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
     </div>
   );

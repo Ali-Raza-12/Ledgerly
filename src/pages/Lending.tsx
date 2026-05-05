@@ -4,6 +4,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { AddLedgerDialog } from "@/components/AddLedgerDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -97,10 +98,6 @@ export function Lending() {
   }, [balances, q]);
 
   const handleDeleteEntry = async (id: string) => {
-    if (!window.confirm("Delete this ledger entry?")) {
-      return;
-    }
-
     try {
       const { error } = await deleteLedgerEntry(id);
       if (error) throw error;
@@ -343,42 +340,59 @@ function PersonCard({
                 : "You paid back";
 
               return (
-                <div
-                  key={entry.id}
-                  className="group flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-secondary/40"
-                >
+                <AlertDialog key={entry.id}>
                   <div
-                    className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-lg shrink-0",
-                      isYouGave ? "bg-primary/15 text-primary" : "bg-warning/15 text-warning",
-                    )}
+                    className="group flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-secondary/40"
                   >
-                    {isYouGave ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {label}
-                      {!isLoan && (
-                        <span className="ml-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                          settlement
-                        </span>
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-lg shrink-0",
+                        isYouGave ? "bg-primary/15 text-primary" : "bg-warning/15 text-warning",
                       )}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {formatDate(entry.date, { day: "numeric", month: "short", year: "numeric" })}
-                      {entry.note ? ` - ${entry.note}` : ""}
-                    </p>
+                    >
+                      {isYouGave ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {label}
+                        {!isLoan && (
+                          <span className="ml-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                            settlement
+                          </span>
+                        )}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {formatDate(entry.date, { day: "numeric", month: "short", year: "numeric" })}
+                        {entry.note ? ` - ${entry.note}` : ""}
+                      </p>
+                    </div>
+                    <p className={cn("fin-number text-sm font-semibold", tone)}>{formatCurrency(entry.amount)}</p>
+                    <AlertDialogTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-colors group-hover:opacity-100 hover:text-destructive"
+                        aria-label="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </AlertDialogTrigger>
                   </div>
-                  <p className={cn("fin-number text-sm font-semibold", tone)}>{formatCurrency(entry.amount)}</p>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(entry.id)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-colors group-hover:opacity-100 hover:text-destructive"
-                    aria-label="Delete"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+
+                  <AlertDialogContent className="glass-card border-border max-w-md rounded-3xl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete entry</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Delete this lending entry? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onDelete(entry.id)} className="bg-destructive text-destructive-foreground">
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               );
             })}
           </div>
