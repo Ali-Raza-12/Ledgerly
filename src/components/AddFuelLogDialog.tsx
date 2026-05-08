@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { addFuelLog, getFuelLogs } from "@/services/fuelLogService";
 import { todayISO } from "@/lib/format";
+import { normalizeOdometerKm } from "@/lib/fuel";
 import type { FuelLog, FuelLogInput } from "@/types/fuel";
 import { Calendar as CalendarIcon, Check, Droplet, Fuel, Gauge, Sparkles, StickyNote, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
@@ -15,6 +16,11 @@ interface Props {
   trigger: React.ReactNode;
   onSuccess?: (log: FuelLog) => void;
 }
+
+const odometerFormatter = new Intl.NumberFormat("en-PK", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1,
+});
 
 export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
   const [open, setOpen] = useState(false);
@@ -48,7 +54,7 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
     };
   }, [open]);
 
-  const odometerNum = Number(odometerKm);
+  const odometerNum = normalizeOdometerKm(odometerKm);
   const litresNum = Number(litres);
   const fuelCostNum = Number(fuelCost);
 
@@ -194,10 +200,11 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
               <Input
                 id="odometer"
                 type="number"
-                inputMode="numeric"
+                inputMode="decimal"
+                step="0.1"
                 value={odometerKm}
                 onChange={(e) => setOdometerKm(e.target.value)}
-                placeholder="24,580"
+                placeholder="e.g. 914151"
                 className="h-14 rounded-2xl border-border bg-secondary/60 pl-12 pr-16 text-lg font-semibold tracking-tight focus-visible:border-primary/60 focus-visible:ring-primary/20"
               />
               <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
@@ -206,9 +213,12 @@ export function AddFuelLogDialog({ trigger, onSuccess }: Props) {
             </div>
             {lastLog ? (
               <p className="px-1 text-[11px] text-muted-foreground">
-                Last reading: <span className="font-medium text-foreground">{lastLog.odometerKm.toLocaleString()} km</span>
+                Last reading: <span className="font-medium text-foreground">{odometerFormatter.format(lastLog.odometerKm)} km</span>
               </p>
             ) : null}
+            <p className="px-1 text-[11px] text-muted-foreground">
+              Whole-number readings treat the last digit as `0.1 km`, so `914151` becomes `91,415.1 km`.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

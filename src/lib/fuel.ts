@@ -22,6 +22,21 @@ export interface ActiveFuelCycle {
   logsCount: number;
 }
 
+export const normalizeOdometerKm = (value: string | number) => {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return 0;
+
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed)) return 0;
+
+    return trimmed.includes(".") ? parsed : parsed / 10;
+  }
+
+  if (!Number.isFinite(value)) return 0;
+  return Number.isInteger(value) ? value / 10 : value;
+};
+
 const sortAscending = (logs: FuelLog[]) =>
   [...logs].sort((a, b) => {
     const byDate = a.date.localeCompare(b.date);

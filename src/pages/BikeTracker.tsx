@@ -27,10 +27,15 @@ import type { FuelLog } from "@/types/fuel";
 import { cn } from "@/lib/utils";
 
 const numberFormatter = new Intl.NumberFormat("en-PK");
+const odometerFormatter = new Intl.NumberFormat("en-PK", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1,
+});
 
 const formatDistance = (value: number) => `${numberFormatter.format(Math.round(value))} km`;
 const formatLitres = (value: number) => `${value.toFixed(1)} L`;
 const formatAverage = (value: number) => `${value.toFixed(1)} km/L`;
+const formatOdometer = (value: number) => `${odometerFormatter.format(value)} km`;
 
 export function BikeTracker() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -411,7 +416,7 @@ export function BikeTracker() {
                                 month: "short",
                                 year: "numeric",
                               })}{" "}
-                              - {formatDistance(log.odometerKm)}
+                              - {formatOdometer(log.odometerKm)}
                             </p>
                           </div>
                           <div className="text-right">

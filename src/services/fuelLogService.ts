@@ -1,4 +1,5 @@
 import { monthKey, todayISO } from "@/lib/format";
+import { normalizeOdometerKm } from "@/lib/fuel";
 import { supabase } from "@/lib/supabaseClient";
 import type { FuelLog, FuelLogInput } from "@/types/fuel";
 import { mapUserScopeError, requireUserId } from "./userScope";
@@ -22,7 +23,7 @@ interface FuelLogRow {
 const normalizeFuelLog = (log: FuelLogRow): FuelLog => ({
   id: typeof log.id === "string" && log.id ? log.id : crypto.randomUUID(),
   date: typeof log.date === "string" && log.date ? log.date : todayISO(),
-  odometerKm: Number(log.odometerKm ?? log.odometer_km ?? 0),
+  odometerKm: normalizeOdometerKm(Number(log.odometerKm ?? log.odometer_km ?? 0)),
   litres: Number(log.litres ?? log.fuel_liters ?? 0),
   fuelCost: Number(log.fuelCost ?? log.fuel_cost ?? 0),
   isFullTank: Boolean(log.isFullTank ?? log.is_full_tank),
@@ -65,7 +66,7 @@ export const addFuelLog = async (input: FuelLogInput) => {
       id: fuelLogId,
       user_id: userId,
       date: input.date,
-      odometer_km: Number(input.odometerKm),
+      odometer_km: normalizeOdometerKm(input.odometerKm),
       fuel_liters: Number(input.litres),
       fuel_cost: Number(input.fuelCost),
       is_full_tank: input.isFullTank,
