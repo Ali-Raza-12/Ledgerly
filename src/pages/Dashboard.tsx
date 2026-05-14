@@ -206,6 +206,9 @@ export function Dashboard() {
                   await deleteExpense(id);
                   QueryClient.invalidateQueries({ queryKey: ["expenses"] });
                 }}
+                onUpdate={async () => {
+                  QueryClient.invalidateQueries({ queryKey: ["expenses"] });
+                }}
               />
             ))}
           </div>

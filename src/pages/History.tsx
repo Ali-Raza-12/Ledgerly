@@ -210,6 +210,11 @@ export function History() {
                       key={expense.id}
                       expense={expense}
                       onDelete={(id) => setExpenses((prev) => prev.filter((item) => item.id !== id))}
+                      onUpdate={(updatedExpense) => {
+                        setExpenses((prev) => 
+                          prev.map((item) => item.id === updatedExpense.id ? updatedExpense : item)
+                        );
+                      }}
                     />
                   ))}
                 </div>

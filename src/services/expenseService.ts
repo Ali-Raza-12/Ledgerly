@@ -94,3 +94,36 @@ export const deleteExpense = async (id: string) => {
     return { error: error instanceof Error ? error : new Error("Failed to delete expense.") };
   }
 };
+
+export const updateExpense = async (id: string, expense: Partial<ExpenseInput>) => {
+  try {
+    const userId = await requireUserId();
+    const { bikeSubType, month, ...expenseInput } = expense;
+    const payload: any = {
+      ...expenseInput,
+      ...(month && { month }),
+      ...(expense.date && !month && { month: monthKey(expense.date) }),
+    };
+
+    if (bikeSubType !== undefined) {
+      payload.bike_sub_type = bikeSubType;
+    }
+
+    const { data, error } = await supabase
+      .from("expenses")
+      .update(payload)
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select();
+
+    return {
+      data: data?.map((item) => normalizeExpense(item as ExpenseRow)) ?? null,
+      error: mapUserScopeError(error),
+    };
+  } catch (error) {
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error("Failed to update expense."),
+    };
+  }
+};

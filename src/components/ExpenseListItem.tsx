@@ -4,13 +4,14 @@ import { getCategories } from "@/services/categoryService";
 import { deleteExpense } from "@/services/expenseService";
 import { useEffect, useState } from "react";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { Trash2 } from "lucide-react";
+import { Trash2, Edit2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 import { BIKE_SUBTYPES } from "@/lib/categories";
 import { toast } from "sonner";
+import { EditExpenseDialog } from "./EditExpenseDialog";
 
-export function ExpenseListItem({ expense, onDelete }: { expense: Expense; onDelete?: (id: string) => void }) {
+export function ExpenseListItem({ expense, onDelete, onUpdate }: { expense: Expense; onDelete?: (id: string) => void; onUpdate?: (expense: Expense) => void }) {
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -58,16 +59,19 @@ export function ExpenseListItem({ expense, onDelete }: { expense: Expense; onDel
         <div className="text-right">
           <p className="fin-number font-semibold">-{formatCurrency(expense.amount)}</p>
         </div>
-        <AlertDialogTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-destructive"
-            aria-label="Delete"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </AlertDialogTrigger>
+        <div className="flex gap-1">
+          <EditExpenseDialog expense={expense} onSuccess={onUpdate} />
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-destructive"
+              aria-label="Delete"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </AlertDialogTrigger>
+        </div>
       </div>
 
       <AlertDialogContent className="glass-card border-border max-w-md rounded-3xl">
